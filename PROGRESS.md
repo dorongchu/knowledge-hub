@@ -1,7 +1,7 @@
 # PROGRESS — 지식정리 웹앱
 
 ## 현재 상태
-인프라 완료. 프론트엔드 골격 작성 + 빌드 성공(Node 22.23.2). 로그인 페이지 렌더링 확인. 실제 로그인 플로우 테스트만 남음. (2026-09-13 기준)
+인프라·프론트엔드 골격·로그인 완료. 워크스페이스 CRUD 구현 및 브라우저 동작 확인 완료. git 저장소 GitHub 연동됨. (2026-09-13 기준)
 
 - Supabase CLI: `npx supabase` (devDependency, v2.117.0). 프로젝트 링크됨 (ref: `supabase/.temp/project-ref`).
 - 마이그레이션 (2026-09-13 `db push` 성공):
@@ -28,7 +28,7 @@
 - [x] 실제 가입/로그인 동작 확인 (2026-09-13)
 
 ### 핵심 기능
-- [ ] 워크스페이스 CRUD
+- [x] 워크스페이스 CRUD — `features/workspace/{api,useWorkspaces,WorkspaceDialogs,WorkspaceListPage,WorkspacePage}.tsx`. 목록(최근 수정순, 노드 수), 생성→상세 이동, 이름 변경, 삭제(확인 다이얼로그) 브라우저 검증 완료
 - [ ] 노드 CRUD (카드/문서 타입)
 - [ ] 그래프뷰 (`@xyflow/react`) — 노드 표시, 클릭 시 미리보기, 더블클릭 시 문서뷰 전환
 - [ ] 문서뷰 (TipTap 에디터) — 노드 트리, Markdown 저장, sanitize 렌더링
@@ -39,6 +39,13 @@
 ### AI 기능 (Edge Function)
 - [ ] `auto-tag` 함수: 세션 검증 + 소유권 검증 + 레이트리밋 → 태그 제안 → 승인 UI
 - [ ] Edge Function 공통 미들웨어(인증/소유권/레이트리밋) 먼저 구현 후 개별 함수에 적용
+
+## 프론트엔드 결정 사항 (2026-09-13)
+- DB 타입: `src/lib/database.types.ts` (`npx supabase gen types typescript --linked --schema public`). 스키마 변경 시 재생성
+- shadcn/ui는 base-nova 스타일 = **Base UI 기반** (Radix 아님). `asChild` 대신 `render` prop, 메뉴 아이템은 `onSelect` 대신 `onClick`, `AlertDialogAction`은 일반 Button이라 자동으로 닫히지 않음
+- 데이터 fetch는 라이브러리 없이 훅(useState/useEffect)으로. 변경 후 목록 재조회로 서버 상태와 동기화
+- 하위 라우트(그래프뷰/문서뷰)는 `useWorkspaceContext()`(WorkspacePage의 Outlet context)로 현재 워크스페이스 접근
+- 다이얼로그 폼 상태는 DialogContent 안의 내부 컴포넌트에 두어 열릴 때마다 초기화 (effect로 리셋하지 않음)
 
 ## 스키마 결정 사항 (2026-09-13)
 - 임베딩 차원: `vector(1024)` (Voyage voyage-3 계열 기준). HNSW cosine 인덱스 생성됨
@@ -63,5 +70,5 @@
 - [ ] 의미 기반 검색 고도화
 
 ## 다음 세션에서 할 일
-1. 워크스페이스 CRUD부터 시작 (아래 2번)
-2. 워크스페이스 CRUD (`features/workspace`) 구현 — 목록 조회(최근 수정순, 노드 수), 생성/이름 변경/삭제
+1. 노드 CRUD (`features/node` 또는 `features/workspace` 하위) — 카드/문서 타입, 제목/본문(Markdown), 목록은 그래프뷰·문서뷰 양쪽에서 공유
+2. 그 다음 그래프뷰(@xyflow/react)

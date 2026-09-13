@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import type { Database } from './database.types'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -11,4 +12,5 @@ if (!url || !anonKey) {
 
 // anon key는 공개 키. RLS가 실제 접근 제어를 담당한다.
 // Anthropic API 키 등 비밀 값은 절대 여기(클라이언트 번들)에 두지 않는다 — CLAUDE.md 절대 규칙 1.
-export const supabase = createClient(url, anonKey)
+// Database 타입은 `npx supabase gen types typescript --linked --schema public > src/lib/database.types.ts` 로 재생성.
+export const supabase = createClient<Database>(url, anonKey)
