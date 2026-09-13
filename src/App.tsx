@@ -12,7 +12,8 @@ import { DocView } from '@/features/doc-view/DocView'
  *   /                           워크스페이스 목록 (홈)
  *   /w/:workspaceId             워크스페이스 상세 → /graph 로 리다이렉트
  *   /w/:workspaceId/graph       그래프뷰 탭
- *   /w/:workspaceId/doc         문서뷰 탭
+ *   /w/:workspaceId/doc         문서뷰 탭 (노드 미선택)
+ *   /w/:workspaceId/doc/:nodeId 문서뷰 탭에서 특정 노드 편집
  */
 export default function App() {
   return (
@@ -24,7 +25,7 @@ export default function App() {
         <Route path="/w/:workspaceId" element={<WorkspacePage />}>
           <Route index element={<Navigate to="graph" replace />} />
           <Route path="graph" element={<GraphView />} />
-          <Route path="doc" element={<DocView />} />
+          <Route path="doc/:nodeId?" element={<DocView />} />
         </Route>
       </Route>
 

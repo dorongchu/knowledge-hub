@@ -1,7 +1,7 @@
 # PROGRESS — 지식정리 웹앱
 
 ## 현재 상태
-인프라·프론트엔드 골격·로그인 완료. 워크스페이스 CRUD 구현 및 브라우저 동작 확인 완료. git 저장소 GitHub 연동됨. (2026-09-13 기준)
+인프라·프론트엔드 골격·로그인·워크스페이스 CRUD·노드 CRUD 완료(브라우저 검증 포함). git 저장소 GitHub 연동됨. (2026-09-13 기준)
 
 - Supabase CLI: `npx supabase` (devDependency, v2.117.0). 프로젝트 링크됨 (ref: `supabase/.temp/project-ref`).
 - 마이그레이션 (2026-09-13 `db push` 성공):
@@ -29,7 +29,7 @@
 
 ### 핵심 기능
 - [x] 워크스페이스 CRUD — `features/workspace/{api,useWorkspaces,WorkspaceDialogs,WorkspaceListPage,WorkspacePage}.tsx`. 목록(최근 수정순, 노드 수), 생성→상세 이동, 이름 변경, 삭제(확인 다이얼로그) 브라우저 검증 완료
-- [ ] 노드 CRUD (카드/문서 타입)
+- [x] 노드 CRUD (카드/문서 타입) — `features/node/{api,useNodes,NodeEditor}.tsx`, 문서뷰(`features/doc-view/DocView.tsx`)에 목록+편집기. 생성/자동저장/타입 변경/삭제/새로고침 유지 브라우저 검증 완료
 - [ ] 그래프뷰 (`@xyflow/react`) — 노드 표시, 클릭 시 미리보기, 더블클릭 시 문서뷰 전환
 - [ ] 문서뷰 (TipTap 에디터) — 노드 트리, Markdown 저장, sanitize 렌더링
 - [ ] 수동 태그 CRUD (카테고리 + 자유 태그)
@@ -46,6 +46,10 @@
 - 데이터 fetch는 라이브러리 없이 훅(useState/useEffect)으로. 변경 후 목록 재조회로 서버 상태와 동기화
 - 하위 라우트(그래프뷰/문서뷰)는 `useWorkspaceContext()`(WorkspacePage의 Outlet context)로 현재 워크스페이스 접근
 - 다이얼로그 폼 상태는 DialogContent 안의 내부 컴포넌트에 두어 열릴 때마다 초기화 (effect로 리셋하지 않음)
+- 노드: WorkspacePage의 `WorkspaceBody`에서 `useNodes(workspace.id)` 한 번 호출 → Outlet context `{ workspace, nodes }` 로 그래프뷰/문서뷰 공유. 목록 조회 시 `embedding` 컬럼 제외
+- 노드 편집: 선택 노드는 URL `/w/:id/doc/:nodeId`. 제목/본문은 0.8초 디바운스 자동저장 + Ctrl/Cmd+S 즉시 저장, 타입 변경은 즉시 저장, 언마운트 시 잔여 변경분 flush. 목록은 로컬 갱신(재정렬 없음)
+- 새 노드는 빈 제목으로 생성(DB default), 화면에서 "제목 없음" 대체 표시, 제목 입력창 자동 포커스
+- 본문은 아직 textarea(원문 Markdown). TipTap 교체와 DOMPurify sanitize 렌더링은 "문서뷰" 단계에서
 
 ## 스키마 결정 사항 (2026-09-13)
 - 임베딩 차원: `vector(1024)` (Voyage voyage-3 계열 기준). HNSW cosine 인덱스 생성됨
@@ -70,5 +74,5 @@
 - [ ] 의미 기반 검색 고도화
 
 ## 다음 세션에서 할 일
-1. 노드 CRUD (`features/node` 또는 `features/workspace` 하위) — 카드/문서 타입, 제목/본문(Markdown), 목록은 그래프뷰·문서뷰 양쪽에서 공유
-2. 그 다음 그래프뷰(@xyflow/react)
+1. 그래프뷰(@xyflow/react) — `useWorkspaceContext().nodes.items` 를 노드로 표시, 클릭 시 사이드 패널 미리보기, 더블클릭 시 `/w/:id/doc/:nodeId` 로 전환. 엣지는 "수동 연결" 단계에서
+2. 문서뷰 고도화 — TipTap 에디터 + DOMPurify sanitize 렌더링
