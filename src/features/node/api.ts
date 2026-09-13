@@ -6,7 +6,7 @@ export type NodeType = Database['public']['Enums']['node_type']
 /** 목록/편집에 쓰는 노드. embedding 은 무겁고 클라이언트에서 쓸 일이 없어 항상 제외한다. */
 export type KnowledgeNode = Omit<Tables<'nodes'>, 'embedding'>
 
-const NODE_COLUMNS = 'id, workspace_id, type, title, content, created_at, updated_at' as const
+const NODE_COLUMNS = 'id, workspace_id, type, title, content, position_x, position_y, created_at, updated_at' as const
 
 export const NODE_TITLE_MAX = 300 // DB check 제약과 동일
 export const DEFAULT_NODE_TITLE = '제목 없음'
@@ -33,7 +33,7 @@ export async function createNode(input: { workspace_id: string; type: NodeType; 
   return data
 }
 
-export type NodePatch = Partial<Pick<KnowledgeNode, 'type' | 'title' | 'content'>>
+export type NodePatch = Partial<Pick<KnowledgeNode, 'type' | 'title' | 'content' | 'position_x' | 'position_y'>>
 
 export async function updateNode(id: string, patch: NodePatch): Promise<KnowledgeNode> {
   const { data, error } = await supabase.from('nodes').update(patch).eq('id', id).select(NODE_COLUMNS).single()

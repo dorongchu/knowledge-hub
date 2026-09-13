@@ -13,7 +13,7 @@ import '@xyflow/react/dist/style.css'
 import { useWorkspaceContext } from '@/features/workspace/WorkspacePage'
 import { KnowledgeFlowNodeView } from './KnowledgeFlowNode'
 import { NodePreviewPanel } from './NodePreviewPanel'
-import { forgetCachedPosition, resolvePosition, setCachedPosition } from './layout'
+import { resolvePosition } from './layout'
 import { KNOWLEDGE_NODE_TYPE, type KnowledgeFlowNode } from './types'
 
 // 컴포넌트 밖에 두어 매 렌더마다 새 객체가 되지 않게 한다 (React Flow 권장)
@@ -28,26 +28,24 @@ export function GraphView() {
   const navigate = useNavigate()
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<KnowledgeFlowNode>([])
 
-  // DB 노드 목록 → React Flow 노드. 이미 있는 노드는 위치/선택 상태를 유지하고, 새 노드만 배치한다.
+  // DB 노드 목록 → React Flow 노드. 화면에 이미 있는 노드는 현재(드래그 중일 수 있는) 위치와 선택 상태를 유지하고,
+  // 새로 나타난 노드만 DB 저장 위치 또는 격자 위치로 배치한다.
   useEffect(() => {
     setFlowNodes((prev) => {
       const prevById = new Map(prev.map((n) => [n.id, n]))
-      const nextIds = new Set(nodes.items.map((n) => n.id))
-      for (const id of prevById.keys()) if (!nextIds.has(id)) forgetCachedPosition(workspace.id, id)
-
       const total = nodes.items.length
       return nodes.items.map((n, i) => {
         const existing = prevById.get(n.id)
         return {
           id: n.id,
           type: KNOWLEDGE_NODE_TYPE,
-          position: existing?.position ?? resolvePosition(workspace.id, n, i, total),
+          position: existing?.position ?? resolvePosition(n, i, total),
           selected: existing?.selected ?? false,
           data: { node: n },
         }
       })
     })
-  }, [nodes.items, workspace.id, setFlowNodes])
+  }, [nodes.items, setFlowNodes])
 
   const selectedId = useMemo(() => flowNodes.find((n) => n.selected)?.id, [flowNodes])
   const selectedNode = selectedId ? nodes.items.find((n) => n.id === selectedId) : undefined
@@ -56,9 +54,15 @@ export function GraphView() {
 
   const onNodeDoubleClick: NodeMouseHandler<KnowledgeFlowNode> = useCallback((_e, node) => openInDoc(node.id), [openInDoc])
 
+  // 드래그 종료 시 DB 저장. 실패해도 화면 위치는 유지되고 다음 새로고침 때 마지막 저장 위치로 돌아간다.
+  const updateNode = nodes.update
   const onNodeDragStop: OnNodeDrag<KnowledgeFlowNode> = useCallback(
-    (_e, node) => setCachedPosition(workspace.id, node.id, node.position),
-    [workspace.id],
+    (_e, _node, dragged) => {
+      for (const n of dragged) {
+        void updateNode(n.id, { position_x: n.position.x, position_y: n.position.y }).catch(() => {})
+      }
+    },
+    [updateNode],
   )
 
   const clearSelection = useCallback(

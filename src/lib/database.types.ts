@@ -178,6 +178,8 @@ export type Database = {
           created_at: string
           embedding: string | null
           id: string
+          position_x: number | null
+          position_y: number | null
           title: string
           type: Database["public"]["Enums"]["node_type"]
           updated_at: string
@@ -188,6 +190,8 @@ export type Database = {
           created_at?: string
           embedding?: string | null
           id?: string
+          position_x?: number | null
+          position_y?: number | null
           title?: string
           type?: Database["public"]["Enums"]["node_type"]
           updated_at?: string
@@ -198,6 +202,8 @@ export type Database = {
           created_at?: string
           embedding?: string | null
           id?: string
+          position_x?: number | null
+          position_y?: number | null
           title?: string
           type?: Database["public"]["Enums"]["node_type"]
           updated_at?: string

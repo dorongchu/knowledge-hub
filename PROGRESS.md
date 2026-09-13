@@ -7,6 +7,7 @@
 - 마이그레이션 (2026-09-13 `db push` 성공):
   - `supabase/migrations/20260913000001_init_schema.sql` — pgvector, enum, 헬퍼 함수, 8개 테이블 + 각 테이블 RLS
   - `supabase/migrations/20260913000002_storage_attachments.sql` — `attachments` private 버킷 + storage.objects 정책
+  - `supabase/migrations/20260913000003_node_positions.sql` — `nodes.position_x/position_y` 추가, updated_at 트리거를 title/content/type 변경 시로 제한 (2026-09-13 push 완료)
 - 프론트엔드: Vite 8 + React 19 + TS 6, Tailwind v4(`@tailwindcss/vite`), shadcn/ui(base-nova, neutral), react-router v7, `@` → `src/` 별칭
   - Node 22.23.2에서 `npm run build` 성공 (단일 청크 524 kB 경고 — 그래프/에디터 추가 시 code-split 검토)
   - `.env` 생성됨 (URL + publishable key, gitignore 대상). `.claude/launch.json`에 dev 서버 설정(포트 5173)
@@ -50,7 +51,7 @@
 - 노드 편집: 선택 노드는 URL `/w/:id/doc/:nodeId`. 제목/본문은 0.8초 디바운스 자동저장 + Ctrl/Cmd+S 즉시 저장, 타입 변경은 즉시 저장, 언마운트 시 잔여 변경분 flush. 목록은 로컬 갱신(재정렬 없음)
 - 새 노드는 빈 제목으로 생성(DB default), 화면에서 "제목 없음" 대체 표시, 제목 입력창 자동 포커스
 - 본문은 아직 textarea(원문 Markdown). TipTap 교체와 DOMPurify sanitize 렌더링은 "문서뷰" 단계에서
-- 그래프 노드 위치: PRD 스키마에 위치 컬럼이 없어 DB 저장 안 함. 자동 격자 배치 + 워크스페이스별 모듈 캐시(`layout.ts`)로 세션 내(탭 전환 포함) 드래그 위치 유지, 새로고침 시 초기화. **영구 저장 여부 결정 필요** → 하려면 `nodes.position_x/position_y` 마이그레이션
+- 그래프 노드 위치: `nodes.position_x/position_y` 에 영구 저장 (null 이면 격자 자동 배치). 드래그 종료 시 `nodes.update` 로 저장, 실패는 무시(다음 새로고침 때 마지막 저장 위치). 위치 변경은 `updated_at` 을 바꾸지 않음 (트리거 조건) → 목록 정렬/홈 최근 수정순에 영향 없음
 - 그래프 미리보기 패널은 본문을 원문 텍스트(`<pre>`)로 표시 → HTML 렌더 아님. Markdown 렌더(+DOMPurify) 컴포넌트는 문서뷰 단계에서 만들어 재사용
 - 번들 858 kB(gzip 265 kB). 그래프뷰/문서뷰 라우트 단위 lazy import 로 code-split 예정 (TipTap 추가 전후)
 
@@ -77,6 +78,5 @@
 - [ ] 의미 기반 검색 고도화
 
 ## 다음 세션에서 할 일
-1. (결정) 그래프 노드 위치 영구 저장 여부
-2. 문서뷰 고도화 — TipTap 에디터 + DOMPurify sanitize 렌더링 (미리보기 패널에도 재사용)
-3. 수동 태그 CRUD → 수동 엣지 생성(그래프에서 Handle 드래그) → 텍스트 검색
+1. 문서뷰 고도화 — TipTap 에디터 + DOMPurify sanitize 렌더링 (미리보기 패널에도 재사용)
+2. 수동 태그 CRUD → 수동 엣지 생성(그래프에서 Handle 드래그) → 텍스트 검색
