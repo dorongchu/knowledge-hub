@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { NavLink, useNavigate, useParams } from 'react-router'
-import { FileText, Plus, StickyNote } from 'lucide-react'
+import { FileText, Plus, StickyNote, Tags } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -11,6 +12,8 @@ import {
 import { useWorkspaceContext } from '@/features/workspace/WorkspacePage'
 import { NodeEditor } from '@/features/node/NodeEditor'
 import { DEFAULT_NODE_TITLE, NODE_TYPE_LABEL, type KnowledgeNode, type NodeType } from '@/features/node/api'
+import { TagManagerDialog } from '@/features/tag/TagManagerDialog'
+import type { TagsApi } from '@/features/tag/useTags'
 import { formatRelativeTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -20,9 +23,10 @@ import { cn } from '@/lib/utils'
  * 검색(fuse.js)은 "텍스트 검색" 단계에서 좌측 상단에 추가.
  */
 export function DocView() {
-  const { workspace, nodes } = useWorkspaceContext()
+  const { workspace, nodes, tags } = useWorkspaceContext()
   const { nodeId } = useParams<{ nodeId?: string }>()
   const navigate = useNavigate()
+  const [tagManagerOpen, setTagManagerOpen] = useState(false)
 
   const selected = nodeId ? nodes.items.find((n) => n.id === nodeId) : undefined
   const base = `/w/${workspace.id}/doc`
@@ -37,6 +41,9 @@ export function DocView() {
       <aside className="flex w-72 shrink-0 flex-col border-r">
         <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
           <span className="text-sm text-muted-foreground">노드 {nodes.items.length}개</span>
+          <Button variant="ghost" size="icon-sm" className="ml-auto" aria-label="태그 관리" title="태그 관리" onClick={() => setTagManagerOpen(true)}>
+            <Tags />
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button size="sm" />}>
               <Plus data-icon="inline-start" />새 노드
@@ -62,7 +69,7 @@ export function DocView() {
             <ul>
               {nodes.items.map((n) => (
                 <li key={n.id}>
-                  <NodeListItem node={n} to={`${base}/${n.id}`} />
+                  <NodeListItem node={n} to={`${base}/${n.id}`} tags={tags} />
                 </li>
               ))}
             </ul>
@@ -75,9 +82,11 @@ export function DocView() {
           <NodeEditor
             key={selected.id}
             node={selected}
+            tags={tags}
             onSave={(patch) => nodes.update(selected.id, patch)}
             onDelete={async () => {
               await nodes.remove(selected.id)
+              tags.forgetNode(selected.id)
               navigate(base, { replace: true })
             }}
           />
@@ -87,12 +96,15 @@ export function DocView() {
           </div>
         )}
       </section>
+
+      <TagManagerDialog open={tagManagerOpen} onOpenChange={setTagManagerOpen} tags={tags} />
     </div>
   )
 }
 
-function NodeListItem({ node, to }: { node: KnowledgeNode; to: string }) {
+function NodeListItem({ node, to, tags }: { node: KnowledgeNode; to: string; tags: TagsApi }) {
   const Icon = node.type === 'card' ? StickyNote : FileText
+  const nodeTags = tags.tagsOfNode(node.id)
   return (
     <NavLink
       to={to}
@@ -109,6 +121,16 @@ function NodeListItem({ node, to }: { node: KnowledgeNode; to: string }) {
           </Badge>
           <time dateTime={node.updated_at}>{formatRelativeTime(node.updated_at)}</time>
         </span>
+        {nodeTags.length > 0 && (
+          <span className="mt-1 flex flex-wrap gap-1">
+            {nodeTags.slice(0, 4).map(({ tag }) => (
+              <span key={tag.id} className="rounded bg-muted px-1 text-[10px] text-muted-foreground">
+                {tag.name}
+              </span>
+            ))}
+            {nodeTags.length > 4 && <span className="text-[10px] text-muted-foreground">+{nodeTags.length - 4}</span>}
+          </span>
+        )}
       </span>
     </NavLink>
   )

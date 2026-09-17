@@ -33,7 +33,7 @@
 - [x] 노드 CRUD (카드/문서 타입) — `features/node/{api,useNodes,NodeEditor}.tsx`, 문서뷰(`features/doc-view/DocView.tsx`)에 목록+편집기. 생성/자동저장/타입 변경/삭제/새로고침 유지 브라우저 검증 완료
 - [x] 그래프뷰 (`@xyflow/react` v12) — `features/graph-view/{GraphView,KnowledgeFlowNode,NodePreviewPanel,layout,types}.tsx`. 노드 표시(카드/문서 크기·아이콘 구분), 클릭 시 우측 미리보기 패널, 더블클릭·"문서뷰에서 편집" 버튼으로 `/w/:id/doc/:nodeId` 전환. 브라우저 검증 완료(더블클릭·드래그는 JS 이벤트로 검증)
 - [x] 문서뷰 (TipTap 에디터) — 노드 목록, Markdown 저장, sanitize 렌더링. `features/node/MarkdownEditor.tsx`(TipTap v3 + `@tiptap/markdown`, 툴바), `lib/markdown.ts`(marked + DOMPurify), `components/MarkdownView.tsx`(그래프 미리보기에 사용). 브라우저 검증: 자동저장, H1 서식 Markdown 왕복, script/onerror/javascript: 제거 확인
-- [ ] 수동 태그 CRUD (카테고리 + 자유 태그)
+- [x] 수동 태그 CRUD (카테고리 + 자유 태그) — 사용자 브라우저 테스트 통과(2026-09-17). `features/tag/{api,useTags,NodeTagBar,TagManagerDialog}.tsx`
 - [ ] 수동 노드 간 연결(엣지) 생성
 - [ ] 텍스트 검색 (fuse.js)
 - [ ] 노션 Markdown 가져오기 (`features/import`) — .zip/.md 업로드 → 미리보기 → 노드 생성. PRD 11장 (2026-09-17 추가)
@@ -51,6 +51,8 @@
 - 노드: WorkspacePage의 `WorkspaceBody`에서 `useNodes(workspace.id)` 한 번 호출 → Outlet context `{ workspace, nodes }` 로 그래프뷰/문서뷰 공유. 목록 조회 시 `embedding` 컬럼 제외
 - 노드 편집: 선택 노드는 URL `/w/:id/doc/:nodeId`. 제목/본문은 0.8초 디바운스 자동저장 + Ctrl/Cmd+S 즉시 저장, 타입 변경은 즉시 저장, 언마운트 시 잔여 변경분 flush. 목록은 로컬 갱신(재정렬 없음)
 - 새 노드는 빈 제목으로 생성(DB default), 화면에서 "제목 없음" 대체 표시, 제목 입력창 자동 포커스
+- 태그: `useTags(workspace.id)` 를 WorkspaceBody 에서 한 번 호출 → Outlet context `{ workspace, nodes, tags }`. 노드-태그 연결은 `node_tags` + `nodes!inner(workspace_id)` 조인으로 워크스페이스 단위 일괄 조회, 로컬 상태 갱신(재조회 없음)
+- 태그 UI: 편집기 제목 아래 `NodeTagBar`(칩 + 검색/생성 팝오버, 한글 조합 중 Enter 무시), 문서뷰 사이드바의 "태그 관리" 다이얼로그(카테고리 CRUD, 태그 이름 변경/카테고리 이동/삭제, 2단계 삭제 확인). 카테고리 삭제 시 소속 태그는 자유 태그로 남음(FK set null). AI 승인 태그는 칩에 ✨ 표시(source='ai') — auto-tag 단계에서 사용
 - 본문 편집: TipTap v3 `useEditor({ content, contentType: 'markdown' })` 로 Markdown 파싱, `editor.getMarkdown()` 으로 직렬화(마크다운 특수문자는 백슬래시 이스케이프됨). 노드 전환 시 `key` 로 에디터 재마운트. 툴바 상태는 `useEditorState` 셀렉터로 구독
 - 본문 렌더(읽기): 반드시 `renderMarkdown()`(marked → DOMPurify, style/form/iframe 등 금지, 링크는 target=_blank + noopener) → `MarkdownView`. 다른 곳에서 `dangerouslySetInnerHTML` 직접 사용 금지
 - Tailwind `@tailwindcss/typography` 플러그인(`prose` 클래스)으로 에디터/뷰 스타일 통일
@@ -87,5 +89,5 @@
 - [ ] 의미 기반 검색 고도화
 
 ## 다음 세션에서 할 일
-1. 수동 태그 CRUD — 카테고리 + 자유 태그. 워크스페이스 태그 관리 UI + 노드 편집기에서 태그 붙이기/떼기
-2. 수동 엣지 생성(그래프에서 Handle 드래그, 라벨) → 텍스트 검색(fuse.js) → auto-tag Edge Function
+1. 수동 엣지 생성 (그래프에서 Handle 드래그, 라벨)
+2. 수동 엣지 생성(그래프에서 Handle 드래그, 라벨) → 텍스트 검색(fuse.js) → 노션 가져오기 → auto-tag Edge Function

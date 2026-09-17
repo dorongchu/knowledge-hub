@@ -2,13 +2,15 @@ import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useOutletContext, useParams } from 'react-router'
 import { cn } from '@/lib/utils'
 import { useNodes, type NodesApi } from '@/features/node/useNodes'
+import { useTags, type TagsApi } from '@/features/tag/useTags'
 import { getWorkspace, type Workspace } from './api'
 import { toMessage } from './useWorkspaces'
 
-/** 하위 라우트(그래프뷰/문서뷰)에서 `useWorkspaceContext()` 로 현재 워크스페이스와 노드 목록에 접근 */
+/** 하위 라우트(그래프뷰/문서뷰)에서 `useWorkspaceContext()` 로 현재 워크스페이스, 노드 목록, 태그 체계에 접근 */
 export interface WorkspaceOutletContext {
   workspace: Workspace
   nodes: NodesApi
+  tags: TagsApi
 }
 
 export function useWorkspaceContext() {
@@ -89,5 +91,6 @@ export function WorkspacePage() {
 /** workspace 가 준비된 뒤에만 마운트되어 useNodes 를 무조건 호출할 수 있게 분리 */
 function WorkspaceBody({ workspace }: { workspace: Workspace }) {
   const nodes = useNodes(workspace.id)
-  return <Outlet context={{ workspace, nodes } satisfies WorkspaceOutletContext} />
+  const tags = useTags(workspace.id)
+  return <Outlet context={{ workspace, nodes, tags } satisfies WorkspaceOutletContext} />
 }
