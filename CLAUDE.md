@@ -7,6 +7,7 @@
 
 개인 지식/학습 내용을 그래프(마인드맵)와 문서(노트) 두 형태로 통합 관리하는 웹앱.
 워크스페이스(주제별 공간) 안에 노드(카드/문서)를 만들고, AI가 태깅·요약·연결을 제안하면 사용자가 승인한다.
+자동 태깅은 자동저장마다가 아니라 사용자가 "태그 제안 받기" 버튼을 누를 때만 호출한다.
 초기엔 1인 사용, 데이터 모델은 멀티유저 협업 확장을 전제로 설계됨.
 
 ## 기술 스택 (고정)
@@ -25,7 +26,7 @@
 2. **모든 테이블에 RLS를 켠다.** 새 테이블을 만들면 그 자리에서 바로 RLS 정책까지 작성한다 — "나중에" 없음.
 3. **Edge Function은 세션 검증 + 소유권 검증을 둘 다 한다.** 로그인 여부만 확인하고 넘어가지 않는다 (요청된 node/workspace가 요청자 소유인지 매번 확인).
 4. **Storage 버킷은 private.** 첨부파일 접근은 signed URL로만.
-5. **AI 출력은 항상 "제안" 상태로 저장하고 사용자 승인 후 확정한다.** 자동 반영 경로를 만들지 않는다 (프롬프트 인젝션 방어의 핵심 장치).
+5. **AI 출력은 항상 "제안"으로만 다루고 사용자 승인 후 확정한다.** 자동 반영 경로를 만들지 않는다 (프롬프트 인젝션 방어의 핵심 장치). 태그 제안은 DB에 쓰지 않고 화면에만 임시 표시 → 승인 시 `node_tags(source: ai)` 저장. 엣지 제안은 `edges.status = suggested`로 저장 → 승인 시 `confirmed`. (PRD 5장)
 6. **노드 콘텐츠 렌더링 시 DOMPurify 등으로 sanitize한다.**
 7. **AI 호출은 사용자/워크스페이스별 레이트리밋을 건다.**
 
@@ -54,7 +55,9 @@ attachments (id, node_id, storage_path, file_name, mime_type, created_at)
     /workspace
     /graph-view
     /doc-view
+    /node
     /search
+    /import (노션 Markdown 가져오기 — PRD 11장)
   /components (shadcn 기반 공용 컴포넌트)
   /lib (supabase client, api wrapper)
 /supabase

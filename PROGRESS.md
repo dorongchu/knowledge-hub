@@ -36,9 +36,10 @@
 - [ ] 수동 태그 CRUD (카테고리 + 자유 태그)
 - [ ] 수동 노드 간 연결(엣지) 생성
 - [ ] 텍스트 검색 (fuse.js)
+- [ ] 노션 Markdown 가져오기 (`features/import`) — .zip/.md 업로드 → 미리보기 → 노드 생성. PRD 11장 (2026-09-17 추가)
 
 ### AI 기능 (Edge Function)
-- [ ] `auto-tag` 함수: 세션 검증 + 소유권 검증 + 레이트리밋 → 태그 제안 → 승인 UI
+- [ ] `auto-tag` 함수: 세션 검증 + 소유권 검증 + 레이트리밋 → 태그 후보를 응답으로만 반환(DB 미기록) → 편집기 "태그 제안 받기" 버튼 + 임시 표시 승인 UI → 승인분만 `tags`/`node_tags(source: ai)` 저장. 세션 내 노드별 마지막 제안은 메모리 보관
 - [ ] Edge Function 공통 미들웨어(인증/소유권/레이트리밋) 먼저 구현 후 개별 함수에 적용
 
 ## 프론트엔드 결정 사항 (2026-09-13)
@@ -66,8 +67,14 @@
 - 소유권 검증 헬퍼: `is_workspace_owner(uuid)`, `is_node_owner(uuid)`, `is_attachment_path_owner(text)` (security definer)
 - Storage 경로 규칙: `{workspace_id}/{node_id}/{file_name}`, 버킷 파일 크기 제한 10 MiB
 
-## 미결 사항 (확인 필요)
-- AI 태그 제안 저장 방식: PRD의 `node_tags`에는 `status` 컬럼이 없음. 현재 스키마는 "AI 제안은 클라이언트에 임시 표시 → 승인 시 `source='ai'`로 insert" 흐름을 전제. edges처럼 DB에 suggested 상태로 저장하려면 `node_tags.status` 추가 마이그레이션 필요
+## 최적화 후보 (필요해질 때)
+- 노드 목록 조회에서 본문 분리: 지금은 `listNodes` 가 모든 노드의 content 를 한 번에 가져옴(그래프 발췌·미리보기용). 노드 수/본문 총량이 커지면 목록은 발췌만, 본문은 선택 시 개별 조회로 변경
+- 자동저장이 본문 전체를 전송 — 큰 문서에서 무거움. 가져오기 한도(파일당 1 MB)를 올리기 전에 함께 점검 (PRD 11.1)
+
+## 결정 완료 (2026-09-17)
+- AI 태그 제안: DB에 저장하지 않고 화면에만 임시 표시, 승인 시 저장. `node_tags.status` 컬럼 추가 없음 (PRD 5장, CLAUDE.md 규칙 5 문구 갱신)
+- 자동 태깅 트리거: 자동저장(0.8초)마다가 아니라 "태그 제안 받기" 버튼으로만 호출
+- 노션 Markdown 가져오기: Phase 1 마지막 핵심 기능으로 추가 (auto-tag 앞). 클라이언트 파싱, 이미지/CSV/내부 링크 엣지는 1차 제외
 
 ## Phase 2 (미착수)
 - [ ] AI 연결 추천 (임베딩 기반, 문서는 요약본 임베딩)
