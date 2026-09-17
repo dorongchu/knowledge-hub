@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useOutletContext, useParams } from 'react-router
 import { cn } from '@/lib/utils'
 import { useNodes, type NodesApi } from '@/features/node/useNodes'
 import { useTags, type TagsApi } from '@/features/tag/useTags'
+import { useTagFilter, type TagFilterApi } from '@/features/tag/useTagFilter'
 import { useEdges, type EdgesApi } from '@/features/edge/useEdges'
 import { getWorkspace, type Workspace } from './api'
 import { toMessage } from './useWorkspaces'
@@ -16,6 +17,8 @@ export interface WorkspaceOutletContext {
   nodes: NodesApi
   tags: TagsApi
   edges: EdgesApi
+  /** 태그 필터 상태 (PRD 4.5). 탭을 오가도 유지되도록 여기 둔다 */
+  tagFilter: TagFilterApi
 }
 
 export function useWorkspaceContext() {
@@ -106,5 +109,6 @@ function WorkspaceBody({ workspaceId, workspace }: { workspaceId: string; worksp
   const nodes = useNodes(workspaceId)
   const tags = useTags(workspaceId)
   const edges = useEdges(workspaceId)
-  return <Outlet context={{ workspaceId, workspace, nodes, tags, edges } satisfies WorkspaceOutletContext} />
+  const tagFilter = useTagFilter(tags.tags, tags.links)
+  return <Outlet context={{ workspaceId, workspace, nodes, tags, edges, tagFilter } satisfies WorkspaceOutletContext} />
 }

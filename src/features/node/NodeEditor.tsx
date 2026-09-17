@@ -37,6 +37,8 @@ export interface NodeConnection {
 interface Props {
   node: KnowledgeNode
   tags: TagsApi
+  /** 태그 칩 클릭 시 (그 태그로 목록 필터) */
+  onTagClick?: (tagId: string) => void
   connections: NodeConnection[]
   onSave: (patch: NodePatch) => Promise<unknown>
   onDelete: () => Promise<void>
@@ -47,7 +49,7 @@ interface Props {
  * 부모는 `key={node.id}` 로 마운트해 노드가 바뀌면 로컬 상태가 초기화되도록 한다.
  * 저장: 제목/본문은 입력 후 AUTOSAVE_DELAY_MS 디바운스, 타입은 즉시. Ctrl/Cmd+S 로 즉시 저장.
  */
-export function NodeEditor({ node, tags, connections, onSave, onDelete }: Props) {
+export function NodeEditor({ node, tags, onTagClick, connections, onSave, onDelete }: Props) {
   const [title, setTitle] = useState(node.title)
   const [status, setStatus] = useState<SaveStatus>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -148,7 +150,7 @@ export function NodeEditor({ node, tags, connections, onSave, onDelete }: Props)
           }}
           className="text-lg font-medium"
         />
-        <NodeTagBar nodeId={node.id} tags={tags} />
+        <NodeTagBar nodeId={node.id} tags={tags} onTagClick={onTagClick} />
         <MarkdownEditor
           initialMarkdown={node.content}
           placeholder={node.type === 'card' ? '짧은 개념 설명을 적어 보세요' : 'Markdown 으로 작성 (예: # 제목, **굵게**, - 목록)'}

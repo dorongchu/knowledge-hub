@@ -18,7 +18,7 @@ type Load = { status: 'idle' } | { status: 'loading' } | { status: 'ready'; docs
 /**
  * 전체 워크스페이스 텍스트 검색 (PRD 4.3). 홈 화면용.
  * 검색창에 처음 포커스할 때 내 모든 노드를 한 번 불러와(RLS 로 본인 소유만) 브라우저에서 fuse.js 로 검색한다.
- * 태그는 전체 검색 대상에서 제외(워크스페이스 내 검색에서만). 노드가 아주 많아지면 서버 검색으로 전환 — PROGRESS.md 최적화 후보.
+ * 태그는 검색 대상이 아니다(태그는 워크스페이스별 태그 필터로 조회 — PRD 4.5). 노드가 아주 많아지면 서버 검색으로 전환 — PROGRESS.md 최적화 후보.
  */
 export function GlobalSearch({ workspaceNames }: Props) {
   const [query, setQuery] = useState('')

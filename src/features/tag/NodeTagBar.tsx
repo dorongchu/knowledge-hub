@@ -13,10 +13,12 @@ const MAX_SUGGESTIONS = 8
 interface Props {
   nodeId: string
   tags: TagsApi
+  /** 칩의 이름 부분을 누르면 호출 (그 태그로 목록 필터) */
+  onTagClick?: (tagId: string) => void
 }
 
 /** 노드에 붙은 태그 칩 + 태그 추가(기존 태그 검색 / 새 자유 태그 생성). 수동으로 붙인 태그는 source='manual'. */
-export function NodeTagBar({ nodeId, tags }: Props) {
+export function NodeTagBar({ nodeId, tags, onTagClick }: Props) {
   const attached = tags.tagsOfNode(nodeId)
   const [error, setError] = useState<string | null>(null)
 
@@ -37,6 +39,7 @@ export function NodeTagBar({ nodeId, tags }: Props) {
           tag={tag}
           categoryName={tags.categoryName(tag.category_id)}
           ai={source === 'ai'}
+          onClick={onTagClick ? () => onTagClick(tag.id) : undefined}
           onRemove={() => void run(() => tags.detach(nodeId, tag.id))}
         />
       ))}
@@ -58,18 +61,29 @@ export function TagChip({
   tag,
   categoryName,
   ai = false,
+  onClick,
   onRemove,
 }: {
   tag: Tag
   categoryName: string | null
   ai?: boolean
+  onClick?: () => void
   onRemove?: () => void
 }) {
   return (
     <Badge variant="secondary" className="gap-1 pr-1 font-normal">
       {ai && <Sparkles className="size-3 text-muted-foreground" aria-label="AI 제안으로 추가됨" />}
-      {categoryName && <span className="text-muted-foreground">{categoryName}:</span>}
-      <span>{tag.name}</span>
+      {onClick ? (
+        <button type="button" onClick={onClick} title={`"${tag.name}" 태그로 목록 필터`} className="inline-flex items-center gap-1 hover:underline">
+          {categoryName && <span className="text-muted-foreground">{categoryName}:</span>}
+          <span>{tag.name}</span>
+        </button>
+      ) : (
+        <>
+          {categoryName && <span className="text-muted-foreground">{categoryName}:</span>}
+          <span>{tag.name}</span>
+        </>
+      )}
       {onRemove && (
         <button
           type="button"

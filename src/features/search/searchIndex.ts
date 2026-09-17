@@ -2,28 +2,26 @@ import Fuse, { type FuseResultMatch, type IFuseOptions } from 'fuse.js'
 import type { NodeType } from '@/features/node/api'
 import { markdownToPlainText } from '@/lib/plainText'
 
-/** 검색 색인용 문서. text 는 Markdown 기호를 걷어낸 평문. */
+/**
+ * 검색 색인용 문서. text 는 Markdown 기호를 걷어낸 평문.
+ * 태그는 색인하지 않는다 — 태그로 찾는 것은 별도의 태그 필터가 담당 (PRD 4.3, 4.5).
+ */
 export interface SearchDoc {
   id: string
   workspaceId: string
   type: NodeType
   title: string
   text: string
-  tags: string[]
 }
 
-export function toSearchDoc(
-  node: { id: string; workspace_id: string; type: NodeType; title: string; content: string },
-  tagNames: string[] = [],
-): SearchDoc {
-  return { id: node.id, workspaceId: node.workspace_id, type: node.type, title: node.title, text: markdownToPlainText(node.content), tags: tagNames }
+export function toSearchDoc(node: { id: string; workspace_id: string; type: NodeType; title: string; content: string }): SearchDoc {
+  return { id: node.id, workspaceId: node.workspace_id, type: node.type, title: node.title, text: markdownToPlainText(node.content) }
 }
 
 const FUSE_OPTIONS: IFuseOptions<SearchDoc> = {
   keys: [
-    { name: 'title', weight: 0.5 },
-    { name: 'tags', weight: 0.3 },
-    { name: 'text', weight: 0.2 },
+    { name: 'title', weight: 0.7 },
+    { name: 'text', weight: 0.3 },
   ],
   // 0 = 완전 일치만, 1 = 아무거나. ignoreLocation 이면 점수 ≈ 틀린 글자 수 / 검색어 길이.
   // 0.34: 3글자에서 1글자, 4~5글자에서 1글자, 6글자에서 2글자까지 오타 허용.
@@ -50,7 +48,6 @@ export interface SearchHit {
   titleParts: SnippetPart[]
   /** 본문에서 일치한 곳 주변 발췌. 본문 일치가 없으면 null */
   snippet: SnippetPart[] | null
-  matchedTags: string[]
 }
 
 const MIN_QUERY = 2
@@ -72,7 +69,6 @@ export function searchNodes(fuse: Fuse<SearchDoc>, query: string): SearchHit[] {
       doc: item,
       titleParts: splitByIndices(item.title, meaningful(titleMatch, q)),
       snippet: textMatch ? buildSnippet(item.text, meaningful(textMatch, q)) : null,
-      matchedTags: (matches ?? []).filter((m) => m.key === 'tags' && typeof m.value === 'string').map((m) => m.value as string),
     }
   })
 }
