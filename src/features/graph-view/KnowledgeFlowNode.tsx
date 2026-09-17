@@ -2,18 +2,9 @@ import { memo } from 'react'
 import { Handle, Position, useConnection, type NodeProps } from '@xyflow/react'
 import { FileText, StickyNote } from 'lucide-react'
 import { DEFAULT_NODE_TITLE } from '@/features/node/api'
+import { excerptOf } from '@/lib/plainText'
 import { cn } from '@/lib/utils'
 import type { KnowledgeFlowNode } from './types'
-
-/** 본문 미리보기용 발췌 (Markdown 기호는 대충 걷어낸다). */
-export function excerpt(content: string, max = 90): string {
-  const text = content
-    .replace(/^#{1,6}\s+/gm, '')
-    .replace(/[*_`>]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-  return text.length > max ? `${text.slice(0, max)}…` : text
-}
 
 const SOURCE_SIDES = [
   { id: 'top', position: Position.Top },
@@ -37,7 +28,7 @@ function KnowledgeFlowNodeComponent({ id, data, selected }: NodeProps<KnowledgeF
   const { node } = data
   const isDoc = node.type === 'doc'
   const Icon = isDoc ? FileText : StickyNote
-  const summary = excerpt(node.content)
+  const summary = excerptOf(node.content)
 
   const connection = useConnection()
   const acceptingConnection = connection.inProgress && connection.fromNode.id !== id

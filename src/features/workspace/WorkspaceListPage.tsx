@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { MoreHorizontal, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useAuth } from '@/features/auth/AuthProvider'
+import { GlobalSearch } from '@/features/search/GlobalSearch'
 import { formatRelativeTime } from '@/lib/format'
 import { useWorkspaces } from './useWorkspaces'
 import { WorkspaceDeleteDialog, WorkspaceNameDialog } from './WorkspaceDialogs'
@@ -29,6 +30,7 @@ export function WorkspaceListPage() {
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' })
 
   const closeDialog = () => setDialog({ kind: 'none' })
+  const workspaceNames = useMemo(() => new Map(items.map((w) => [w.id, w.name])), [items])
 
   return (
     <main className="mx-auto max-w-5xl p-6">
@@ -44,6 +46,8 @@ export function WorkspaceListPage() {
           </Button>
         </div>
       </header>
+
+      {items.length > 0 && <GlobalSearch workspaceNames={workspaceNames} />}
 
       {error && (
         <p role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">

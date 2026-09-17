@@ -35,7 +35,7 @@
 - [x] 문서뷰 (TipTap 에디터) — 노드 목록, Markdown 저장, sanitize 렌더링. `features/node/MarkdownEditor.tsx`(TipTap v3 + `@tiptap/markdown`, 툴바), `lib/markdown.ts`(marked + DOMPurify), `components/MarkdownView.tsx`(그래프 미리보기에 사용). 브라우저 검증: 자동저장, H1 서식 Markdown 왕복, script/onerror/javascript: 제거 확인
 - [x] 수동 태그 CRUD (카테고리 + 자유 태그) — 사용자 브라우저 테스트 통과(2026-09-17). `features/tag/{api,useTags,NodeTagBar,TagManagerDialog}.tsx`
 - [x] 수동 노드 간 연결(엣지) 생성 — 사용자 브라우저 테스트 통과(2026-09-17, easy-connect + 플로팅 엣지 개선 포함). `features/edge/{api,useEdges}.ts`, `graph-view/{GraphView,EdgePanel}.tsx`
-- [ ] 텍스트 검색 (fuse.js)
+- [x] 텍스트 검색 (fuse.js) — 사용자 브라우저 테스트 통과(2026-09-17). `features/search/{searchIndex,Highlight,SearchInput,GlobalSearch}.tsx`, `lib/plainText.ts`
 - [ ] 노션 Markdown 가져오기 (`features/import`) — .zip/.md 업로드 → 미리보기 → 노드 생성. PRD 11장 (2026-09-17 추가)
 
 ### AI 기능 (Edge Function)
@@ -58,6 +58,7 @@
 - 개발 전용 `/__dev/graph` (`GraphPlayground.tsx`, `import.meta.env.DEV` 일 때만 라우트 등록, 프로덕션 번들 제외): 로그인/DB 없이 같은 노드·엣지 컴포넌트로 연결 상호작용을 시험. 재현·회귀 확인은 여기서 JS 마우스 이벤트로 수행
 - (이전 방식, 대체됨) 그래프 연결 UX: 아래 Handle(source) → 위 Handle(target) 드래그. `isValidConnection` 으로 자기 연결·같은 방향 중복을 DB 제약과 같은 기준으로 사전 차단(A→B 와 B→A 는 둘 다 허용). 엣지 클릭 → `EdgePanel`(라벨 편집: Enter/blur 저장, 2단계 삭제). 키보드 Delete 삭제는 비활성(`deleteKeyCode={null}`)
 - 문서뷰 편집기 하단에 연결된 노드 목록(방향 화살표 + 라벨, 클릭 시 해당 노드로 이동) — 읽기 전용, 생성/편집은 그래프뷰에서만
+- 검색: fuse.js 클라이언트 검색. 색인 대상은 제목(0.5)·태그 이름(0.3)·본문 평문(0.2, `markdownToPlainText`), threshold 0.34, ignoreLocation, 연속 2글자 이상 일치 필요, 검색어 2글자 이상. 워크스페이스 내 검색은 문서뷰 사이드바(이미 불러온 노드/태그로 색인, `useDeferredValue`), 전체 검색은 홈 화면(첫 포커스 때 내 모든 노드의 제목·본문을 한 번 조회, 태그 제외). 강조는 `<mark>` React 노드로만 렌더(HTML 주입 없음)
 - 본문 편집: TipTap v3 `useEditor({ content, contentType: 'markdown' })` 로 Markdown 파싱, `editor.getMarkdown()` 으로 직렬화(마크다운 특수문자는 백슬래시 이스케이프됨). 노드 전환 시 `key` 로 에디터 재마운트. 툴바 상태는 `useEditorState` 셀렉터로 구독
 - 본문 렌더(읽기): 반드시 `renderMarkdown()`(marked → DOMPurify, style/form/iframe 등 금지, 링크는 target=_blank + noopener) → `MarkdownView`. 다른 곳에서 `dangerouslySetInnerHTML` 직접 사용 금지
 - Tailwind `@tailwindcss/typography` 플러그인(`prose` 클래스)으로 에디터/뷰 스타일 통일
@@ -76,6 +77,7 @@
 
 ## 최적화 후보 (필요해질 때)
 - 노드 목록 조회에서 본문 분리: 지금은 `listNodes` 가 모든 노드의 content 를 한 번에 가져옴(그래프 발췌·미리보기용). 노드 수/본문 총량이 커지면 목록은 발췌만, 본문은 선택 시 개별 조회로 변경
+- 전체 검색은 모든 노드의 본문을 한 번에 조회해 브라우저에서 색인 — 노드가 아주 많아지면 Postgres full-text 또는 Phase 3 의미 검색(pgvector)으로 서버 검색 전환
 - 자동저장이 본문 전체를 전송 — 큰 문서에서 무거움. 가져오기 한도(파일당 1 MB)를 올리기 전에 함께 점검 (PRD 11.1)
 
 ## 결정 완료 (2026-09-17)
@@ -94,5 +96,5 @@
 - [ ] 의미 기반 검색 고도화
 
 ## 다음 세션에서 할 일
-1. 텍스트 검색 (fuse.js)
-2. 수동 엣지 생성(그래프에서 Handle 드래그, 라벨) → 텍스트 검색(fuse.js) → 노션 가져오기 → auto-tag Edge Function
+1. 텍스트 검색 화면 검증(사용자) → 체크박스 [x], 커밋
+2. 노션 Markdown 가져오기(PRD 11장) → auto-tag Edge Function
