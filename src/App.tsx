@@ -9,6 +9,11 @@ import { WorkspacePage } from '@/features/workspace/WorkspacePage'
 const GraphView = lazy(() => import('@/features/graph-view/GraphView').then((m) => ({ default: m.GraphView })))
 const DocView = lazy(() => import('@/features/doc-view/DocView').then((m) => ({ default: m.DocView })))
 
+// 개발 전용: 로그인 없이 그래프 상호작용을 시험하는 화면. 프로덕션 빌드에서는 분기 자체가 제거된다.
+const GraphPlayground = import.meta.env.DEV
+  ? lazy(() => import('@/features/graph-view/GraphPlayground').then((m) => ({ default: m.GraphPlayground })))
+  : null
+
 const viewFallback = <div className="flex h-full items-center justify-center text-sm text-muted-foreground">불러오는 중…</div>
 
 /**
@@ -24,6 +29,16 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      {GraphPlayground && (
+        <Route
+          path="/__dev/graph"
+          element={
+            <Suspense fallback={viewFallback}>
+              <GraphPlayground />
+            </Suspense>
+          }
+        />
+      )}
 
       <Route element={<RequireAuth />}>
         <Route path="/" element={<WorkspaceListPage />} />

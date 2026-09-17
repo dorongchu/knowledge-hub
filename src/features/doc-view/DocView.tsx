@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils'
  * 검색(fuse.js)은 "텍스트 검색" 단계에서 좌측 상단에 추가.
  */
 export function DocView() {
-  const { workspace, nodes, tags } = useWorkspaceContext()
+  const { workspace, nodes, tags, edges } = useWorkspaceContext()
   const { nodeId } = useParams<{ nodeId?: string }>()
   const navigate = useNavigate()
   const [tagManagerOpen, setTagManagerOpen] = useState(false)
@@ -83,10 +83,17 @@ export function DocView() {
             key={selected.id}
             node={selected}
             tags={tags}
+            connections={edges.ofNode(selected.id).map((e) => {
+              const outgoing = e.source_node_id === selected.id
+              const otherId = outgoing ? e.target_node_id : e.source_node_id
+              const other = nodes.items.find((n) => n.id === otherId)
+              return { edgeId: e.id, outgoing, label: e.label, otherTitle: other?.title || DEFAULT_NODE_TITLE, to: `${base}/${otherId}` }
+            })}
             onSave={(patch) => nodes.update(selected.id, patch)}
             onDelete={async () => {
               await nodes.remove(selected.id)
               tags.forgetNode(selected.id)
+              edges.forgetNode(selected.id)
               navigate(base, { replace: true })
             }}
           />

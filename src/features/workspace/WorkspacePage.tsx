@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useOutletContext, useParams } from 'react-router
 import { cn } from '@/lib/utils'
 import { useNodes, type NodesApi } from '@/features/node/useNodes'
 import { useTags, type TagsApi } from '@/features/tag/useTags'
+import { useEdges, type EdgesApi } from '@/features/edge/useEdges'
 import { getWorkspace, type Workspace } from './api'
 import { toMessage } from './useWorkspaces'
 
@@ -11,6 +12,7 @@ export interface WorkspaceOutletContext {
   workspace: Workspace
   nodes: NodesApi
   tags: TagsApi
+  edges: EdgesApi
 }
 
 export function useWorkspaceContext() {
@@ -92,5 +94,6 @@ export function WorkspacePage() {
 function WorkspaceBody({ workspace }: { workspace: Workspace }) {
   const nodes = useNodes(workspace.id)
   const tags = useTags(workspace.id)
-  return <Outlet context={{ workspace, nodes, tags } satisfies WorkspaceOutletContext} />
+  const edges = useEdges(workspace.id)
+  return <Outlet context={{ workspace, nodes, tags, edges } satisfies WorkspaceOutletContext} />
 }

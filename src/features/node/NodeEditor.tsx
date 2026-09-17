@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Link } from 'react-router'
+import { ArrowLeft, ArrowRight, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { MarkdownEditor } from './MarkdownEditor'
@@ -23,9 +24,20 @@ const AUTOSAVE_DELAY_MS = 800
 
 type SaveStatus = 'idle' | 'dirty' | 'saving' | 'saved' | 'error'
 
+/** 이 노드와 연결된 다른 노드 (읽기 전용 표시용). 연결 생성/편집은 그래프뷰에서 한다. */
+export interface NodeConnection {
+  edgeId: string
+  /** true: 이 노드 → 상대, false: 상대 → 이 노드 */
+  outgoing: boolean
+  label: string | null
+  otherTitle: string
+  to: string
+}
+
 interface Props {
   node: KnowledgeNode
   tags: TagsApi
+  connections: NodeConnection[]
   onSave: (patch: NodePatch) => Promise<unknown>
   onDelete: () => Promise<void>
 }
@@ -35,7 +47,7 @@ interface Props {
  * 부모는 `key={node.id}` 로 마운트해 노드가 바뀌면 로컬 상태가 초기화되도록 한다.
  * 저장: 제목/본문은 입력 후 AUTOSAVE_DELAY_MS 디바운스, 타입은 즉시. Ctrl/Cmd+S 로 즉시 저장.
  */
-export function NodeEditor({ node, tags, onSave, onDelete }: Props) {
+export function NodeEditor({ node, tags, connections, onSave, onDelete }: Props) {
   const [title, setTitle] = useState(node.title)
   const [status, setStatus] = useState<SaveStatus>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -143,6 +155,22 @@ export function NodeEditor({ node, tags, onSave, onDelete }: Props) {
           onChange={(md) => schedule({ content: md })}
           className="min-h-0 flex-1"
         />
+        {connections.length > 0 && (
+          <div className="border-t pt-2 text-sm" aria-label="연결된 노드">
+            <p className="mb-1 text-xs text-muted-foreground">연결 {connections.length}개 (편집은 그래프뷰에서)</p>
+            <ul className="flex flex-wrap gap-1.5">
+              {connections.map((c) => (
+                <li key={c.edgeId}>
+                  <Link to={c.to} className="inline-flex max-w-56 items-center gap-1 rounded-md border px-2 py-0.5 text-xs hover:bg-muted">
+                    {c.outgoing ? <ArrowRight className="size-3 shrink-0" aria-label="나가는 연결" /> : <ArrowLeft className="size-3 shrink-0" aria-label="들어오는 연결" />}
+                    <span className="truncate">{c.otherTitle}</span>
+                    {c.label && <span className="shrink-0 text-muted-foreground">· {c.label}</span>}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
