@@ -5,6 +5,7 @@ import { useNodes, type NodesApi } from '@/features/node/useNodes'
 import { useTags, type TagsApi } from '@/features/tag/useTags'
 import { useTagFilter, type TagFilterApi } from '@/features/tag/useTagFilter'
 import { useEdges, type EdgesApi } from '@/features/edge/useEdges'
+import { useTagSuggestions, type TagSuggestionsApi } from '@/features/ai/useTagSuggestions'
 import { getWorkspace, type Workspace } from './api'
 import { toMessage } from './useWorkspaces'
 
@@ -19,6 +20,8 @@ export interface WorkspaceOutletContext {
   edges: EdgesApi
   /** 태그 필터 상태 (PRD 4.5). 탭을 오가도 유지되도록 여기 둔다 */
   tagFilter: TagFilterApi
+  /** AI 태그 제안의 세션 내 보관소 (DB 에 저장하지 않음 — PRD 5장) */
+  tagSuggestions: TagSuggestionsApi
 }
 
 export function useWorkspaceContext() {
@@ -110,5 +113,6 @@ function WorkspaceBody({ workspaceId, workspace }: { workspaceId: string; worksp
   const tags = useTags(workspaceId)
   const edges = useEdges(workspaceId)
   const tagFilter = useTagFilter(tags.tags, tags.links)
-  return <Outlet context={{ workspaceId, workspace, nodes, tags, edges, tagFilter } satisfies WorkspaceOutletContext} />
+  const tagSuggestions = useTagSuggestions()
+  return <Outlet context={{ workspaceId, workspace, nodes, tags, edges, tagFilter, tagSuggestions } satisfies WorkspaceOutletContext} />
 }

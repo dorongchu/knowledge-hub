@@ -41,9 +41,12 @@ node_tags (node_id, tag_id, source: ai|manual)
 edges (id, workspace_id, source_node_id, target_node_id, label, source: ai|manual, status: suggested|confirmed|rejected)
 workspace_members (workspace_id, user_id, role)  -- MVP엔 owner만
 attachments (id, node_id, storage_path, file_name, mime_type, created_at)
+ai_usage (id, user_id, workspace_id, function_name, created_at)  -- AI 호출 1회당 1행. 레이트리밋 집계용. 쓰기는 Edge Function(service_role)만, 본인 행 조회만 허용
 ```
 
 임베딩 전략: 문서형(doc) 노드는 원문 대신 AI 요약본을 임베딩 (긴 텍스트 직접 임베딩 금지 — 의미 희석).
+
+Edge Function: 공통 모듈은 `supabase/functions/_shared/`(`http.ts` 오류 형식·CORS, `auth.ts` 세션+소유권 검증, `rateLimit.ts` 한도) — 새 AI 함수도 반드시 `authenticate → requireOwned… → consumeQuota` 순서를 거친다. 의존성 버전은 함수별 `deno.json`. Claude 호출은 공식 SDK(`@anthropic-ai/sdk`) + 구조화 출력, 본문은 클라이언트 입력이 아니라 서버가 DB에서 읽는다. 검사: `cd supabase/functions/<이름> && npx deno check index.ts && npx deno lint . ../_shared`. 배포: `npx supabase functions deploy <이름> --use-api`.
 
 마이그레이션: `supabase/migrations/YYYYMMDDHHMMSS_이름.sql` (Supabase CLI 규약). 소유권 검증은 `public.is_workspace_owner(uuid)` / `public.is_node_owner(uuid)` 헬퍼 함수로 통일 — Phase 2 협업 확장 시 이 두 함수만 수정. Storage 경로 규칙은 `{workspace_id}/{node_id}/{file_name}`.
 

@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_usage: {
+        Row: {
+          created_at: string
+          function_name: string
+          id: number
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          function_name: string
+          id?: never
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          function_name?: string
+          id?: never
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attachments: {
         Row: {
           created_at: string
@@ -316,6 +348,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      consume_ai_quota: {
+        Args: {
+          p_function_name: string
+          p_user_id: string
+          p_user_per_day: number
+          p_user_per_minute: number
+          p_workspace_id: string
+          p_workspace_per_day: number
+        }
+        Returns: Json
+      }
       is_attachment_path_owner: {
         Args: { p_object_name: string }
         Returns: boolean

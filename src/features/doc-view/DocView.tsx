@@ -30,7 +30,7 @@ import { cn } from '@/lib/utils'
  * 태그 필터를 먼저 적용하고, 텍스트 검색은 그 범위 안에서 동작한다. 이미 불러온 노드/태그를 쓰므로 추가 조회 없음.
  */
 export function DocView() {
-  const { workspaceId, workspace, nodes, tags, edges, tagFilter } = useWorkspaceContext()
+  const { workspaceId, workspace, nodes, tags, edges, tagFilter, tagSuggestions } = useWorkspaceContext()
   const { nodeId } = useParams<{ nodeId?: string }>()
   const navigate = useNavigate()
   const [tagManagerOpen, setTagManagerOpen] = useState(false)
@@ -142,6 +142,7 @@ export function DocView() {
             node={selected}
             tags={tags}
             onTagClick={tagFilter.only}
+            tagSuggestions={tagSuggestions}
             connections={edges.ofNode(selected.id).map((e) => {
               const outgoing = e.source_node_id === selected.id
               const otherId = outgoing ? e.target_node_id : e.source_node_id
@@ -152,6 +153,7 @@ export function DocView() {
             onDelete={async () => {
               await nodes.remove(selected.id)
               tags.forgetNode(selected.id)
+              tagSuggestions.clear(selected.id)
               edges.forgetNode(selected.id)
               navigate(base, { replace: true })
             }}

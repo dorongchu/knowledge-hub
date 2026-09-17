@@ -7,6 +7,7 @@
 - 마이그레이션 (2026-09-13 `db push` 성공):
   - `supabase/migrations/20260913000001_init_schema.sql` — pgvector, enum, 헬퍼 함수, 8개 테이블 + 각 테이블 RLS
   - `supabase/migrations/20260913000002_storage_attachments.sql` — `attachments` private 버킷 + storage.objects 정책
+  - `supabase/migrations/20260917000004_ai_usage.sql` — `ai_usage` 테이블(RLS: 본인 행 조회만) + `consume_ai_quota`(한도 확인+기록을 한 트랜잭션, 사용자별 advisory lock, service_role 전용) (2026-09-17 서울 프로젝트 push 완료)
   - `supabase/migrations/20260913000003_node_positions.sql` — `nodes.position_x/position_y` 추가, updated_at 트리거를 title/content/type 변경 시로 제한 (2026-09-13 push 완료)
 - 프론트엔드: Vite 8 + React 19 + TS 6, Tailwind v4(`@tailwindcss/vite`), shadcn/ui(base-nova, neutral), react-router v7, `@` → `src/` 별칭
   - Node 22.23.2에서 `npm run build` 성공 (단일 청크 524 kB 경고 — 그래프/에디터 추가 시 code-split 검토)
@@ -40,8 +41,8 @@
 - [x] 노션 Markdown 가져오기 (PRD 11장) — 사용자가 실제 노션 내보내기로 테스트 통과(2026-09-17). 파싱 로직은 브라우저에서 모의 노션 zip 으로 검증(한글 파일명, 32자리 ID 제거, BOM/CRLF, 중첩 zip, 이미지·CSV·1 MB 초과 건너뛰기, __MACOSX 무시). `features/import/{parseNotion.ts,ImportDialog.tsx}`, `node/api.ts createNodes`, `useNodes.createMany`
 
 ### AI 기능 (Edge Function)
-- [ ] `auto-tag` 함수: 세션 검증 + 소유권 검증 + 레이트리밋 → 태그 후보를 응답으로만 반환(DB 미기록) → 편집기 "태그 제안 받기" 버튼 + 임시 표시 승인 UI → 승인분만 `tags`/`node_tags(source: ai)` 저장. 세션 내 노드별 마지막 제안은 메모리 보관
-- [ ] Edge Function 공통 미들웨어(인증/소유권/레이트리밋) 먼저 구현 후 개별 함수에 적용
+- [~] `auto-tag` 함수 — 구현·배포 완료, **보류(2026-09-17 사용자 결정: Anthropic API 가 종량제라 키 등록을 미룸)**. 화면에서는 `VITE_ENABLE_AI_TAGGING`(기본 꺼짐, `src/lib/features.ts`)으로 버튼을 숨김. 재개 절차: `npx supabase secrets set ANTHROPIC_API_KEY=...` → `.env` 에 `VITE_ENABLE_AI_TAGGING=true` → dev 서버 재시작 → 실제 호출 검증 후 [x]. 세션 검증 + 소유권 검증 + 레이트리밋 → 태그 후보를 응답으로만 반환(DB 미기록) → 편집기 "태그 제안 받기" 버튼 + 임시 표시 승인 UI → 승인분만 `tags`/`node_tags(source: ai)` 저장. 배포본 보안 경로 검증: 인증 없음/공개 키/위조 JWT 모두 401, `consume_ai_quota`·`ai_usage` 일반 권한 접근 거부
+- [x] Edge Function 공통 미들웨어(인증/소유권/레이트리밋) — `supabase/functions/_shared/{http,auth,rateLimit}.ts`, 마이그레이션 0004(`ai_usage` + `consume_ai_quota`)
 
 ## 프론트엔드 결정 사항 (2026-09-13)
 - DB 타입: `src/lib/database.types.ts` (`npx supabase gen types typescript --linked --schema public`). 스키마 변경 시 재생성
@@ -63,6 +64,8 @@
 - 태그 필터: 상태는 `useTagFilter(tags.tags, tags.links)` 를 WorkspaceBody 에서 만들어 Outlet context `tagFilter` 로 공유(탭 전환에도 유지, 그래프뷰 연동 확장 대비). 복수 선택은 AND 기본/OR 전환, 삭제된 태그는 선택에서 자동 제외. 문서뷰 목록은 태그 필터 → 그 범위 안에서 텍스트 검색 순으로 적용. 칩 클릭(목록·편집기)은 그 태그 하나로 필터 교체(`only`). 목록 한 줄은 링크와 태그 버튼을 형제로 배치(링크 안에 버튼을 넣지 않음)
 - 가져오기: 파싱은 전부 브라우저(`fflate`), 원본 미전송. 제한 상수는 `parseNotion.ts`(파일당 1 MB, 200개, zip 100 MB, card 기준 평문 500자). 제목만 있고 본문이 빈 페이지도 후보로 포함(노션의 빈 페이지). 일괄 insert 는 25개 또는 약 1.5 MB 단위로 나눠 요청, 중간 실패 시 성공분은 목록에 반영하고 결과 화면에 표시. 진입점은 문서뷰 사이드바의 가져오기 아이콘
 - 렌더 링크 정책(`lib/markdown.ts`): http/https/mailto 만 href 허용(`ALLOWED_URI_REGEXP`). 노션 내보내기의 상대 경로 링크·이미지는 주소가 제거되고 글자/대체 텍스트만 남음 (PRD 11.3 의 내부 링크→엣지 변환 확장 때 재검토)
+- auto-tag: 모델 `claude-sonnet-5`(PRD 7장 sonnet 계열), thinking 끔 + effort low, `messages.parse` + zod 구조화 출력, max_tokens 1024, SDK 타임아웃 30초. 본문은 서버가 DB에서 읽고 24,000자까지만 분석(넘으면 응답 `truncated` 로 화면에 안내). 시스템 지침과 `<document>` 본문 분리 + 본문 속 지시문 무시 명시. 모델 출력은 이름 정규화·중복 제거·기존 태그 매칭·이미 붙은 태그 제외 후 최대 6개. 한도 초기값: 사용자 분당 5회/하루 50회, 워크스페이스 하루 100회(`_shared/rateLimit.ts`). Claude 쪽 장애로 결과를 못 받으면 사용 1회 환불, 거절(refusal)은 유지
+- auto-tag 클라이언트: `features/ai/{autoTag.ts,useTagSuggestions.ts,TagSuggestions.tsx}`. 제안은 WorkspaceBody context 의 메모리 보관소에만(새로고침 시 소멸). 요청 전 편집기의 미저장 변경분을 flush. 승인 시 현재 태그 상태 기준으로 다시 매칭(그 사이 삭제/생성 대비)
 - 본문 편집: TipTap v3 `useEditor({ content, contentType: 'markdown' })` 로 Markdown 파싱, `editor.getMarkdown()` 으로 직렬화(마크다운 특수문자는 백슬래시 이스케이프됨). 노드 전환 시 `key` 로 에디터 재마운트. 툴바 상태는 `useEditorState` 셀렉터로 구독
 - 본문 렌더(읽기): 반드시 `renderMarkdown()`(marked → DOMPurify, style/form/iframe 등 금지, 링크는 target=_blank + noopener) → `MarkdownView`. 다른 곳에서 `dangerouslySetInnerHTML` 직접 사용 금지
 - Tailwind `@tailwindcss/typography` 플러그인(`prose` 클래스)으로 에디터/뷰 스타일 통일
@@ -108,5 +111,5 @@
 - [ ] 의미 기반 검색 고도화
 
 ## 다음 세션에서 할 일
-1. auto-tag Edge Function (공통 미들웨어 먼저: 세션·소유권 검증, 레이트리밋 / 서울 프로젝트에 ANTHROPIC_API_KEY 시크릿 등록 필요)
+1. Phase 1 은 auto-tag 실호출 검증만 보류 상태로 남음(위 AI 기능 항목의 재개 절차 참고). 다음 작업은 사용자와 결정: Phase 1 마무리 점검(README, 배포 방법) 또는 Phase 2
 2. 노션 Markdown 가져오기(PRD 11장) → auto-tag Edge Function

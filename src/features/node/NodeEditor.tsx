@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input'
 import { MarkdownEditor } from './MarkdownEditor'
 import { NodeTagBar } from '@/features/tag/NodeTagBar'
 import type { TagsApi } from '@/features/tag/useTags'
+import { TagSuggestions } from '@/features/ai/TagSuggestions'
+import type { TagSuggestionsApi } from '@/features/ai/useTagSuggestions'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,6 +19,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { toMessage } from '@/features/workspace/useWorkspaces'
+import { AI_TAGGING_ENABLED } from '@/lib/features'
 import { cn } from '@/lib/utils'
 import { DEFAULT_NODE_TITLE, NODE_TITLE_MAX, NODE_TYPE_LABEL, type KnowledgeNode, type NodePatch, type NodeType } from './api'
 
@@ -39,6 +42,8 @@ interface Props {
   tags: TagsApi
   /** 태그 칩 클릭 시 (그 태그로 목록 필터) */
   onTagClick?: (tagId: string) => void
+  /** AI 태그 제안 보관소 (세션 메모리) */
+  tagSuggestions: TagSuggestionsApi
   connections: NodeConnection[]
   onSave: (patch: NodePatch) => Promise<unknown>
   onDelete: () => Promise<void>
@@ -49,7 +54,7 @@ interface Props {
  * 부모는 `key={node.id}` 로 마운트해 노드가 바뀌면 로컬 상태가 초기화되도록 한다.
  * 저장: 제목/본문은 입력 후 AUTOSAVE_DELAY_MS 디바운스, 타입은 즉시. Ctrl/Cmd+S 로 즉시 저장.
  */
-export function NodeEditor({ node, tags, onTagClick, connections, onSave, onDelete }: Props) {
+export function NodeEditor({ node, tags, onTagClick, tagSuggestions, connections, onSave, onDelete }: Props) {
   const [title, setTitle] = useState(node.title)
   const [status, setStatus] = useState<SaveStatus>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -151,6 +156,7 @@ export function NodeEditor({ node, tags, onTagClick, connections, onSave, onDele
           className="text-lg font-medium"
         />
         <NodeTagBar nodeId={node.id} tags={tags} onTagClick={onTagClick} />
+        {AI_TAGGING_ENABLED && <TagSuggestions nodeId={node.id} tags={tags} store={tagSuggestions} flushPendingSave={flush} />}
         <MarkdownEditor
           initialMarkdown={node.content}
           placeholder={node.type === 'card' ? '짧은 개념 설명을 적어 보세요' : 'Markdown 으로 작성 (예: # 제목, **굵게**, - 목록)'}
