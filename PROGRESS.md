@@ -3,7 +3,7 @@
 ## 현재 상태
 인프라·프론트엔드 골격·로그인·워크스페이스 CRUD·노드 CRUD·그래프뷰·문서뷰(TipTap + sanitize) 완료. 남은 Phase 1: 태그, 엣지, 검색, AI auto-tag. (2026-09-13 기준)
 
-- Supabase CLI: `npx supabase` (devDependency, v2.117.0). 프로젝트 링크됨 (ref: `supabase/.temp/project-ref`).
+- Supabase CLI: `npx supabase` (devDependency, v2.117.0). 서울 리전 프로젝트 `tqcvtmrozdtqqawwvlbm` 에 링크됨 (2026-09-17 뭄바이에서 이전. ref: `supabase/.temp/project-ref`).
 - 마이그레이션 (2026-09-13 `db push` 성공):
   - `supabase/migrations/20260913000001_init_schema.sql` — pgvector, enum, 헬퍼 함수, 8개 테이블 + 각 테이블 RLS
   - `supabase/migrations/20260913000002_storage_attachments.sql` — `attachments` private 버킷 + storage.objects 정책
@@ -81,6 +81,7 @@
 - 워크스페이스 진입 시 요청 구조: `getWorkspace`(1회) 완료 후에야 `useNodes`(1) + `useTags`(3) + `useEdges`(1) 5개가 병렬 시작 → 왕복 2단계 직렬. 2단계는 5개 중 가장 느린 요청이 좌우(지연 편차가 커서 태그·엣지 추가 후 체감 악화). 진입할 때마다 전부 재조회(캐시 없음)
 - 문서뷰 lazy 청크 첫 로드: dev 모드 약 0.3초(요청 16개). 프로덕션은 단일 파일 485 kB(gzip 152 kB). 페이지 로드당 1회
 - **적용됨 (B, 2026-09-17)**: `WorkspaceBody` 를 워크스페이스 행 조회 완료 전에 URL 의 id 만으로 즉시 마운트(`key={workspaceId}`) → getWorkspace + nodes + tags(3) + edges 6개 요청이 동시에 시작, 하위 뷰 lazy 청크도 같은 시점에 로드 시작(D 의 일부 효과). Outlet context 는 `{ workspaceId, workspace: Workspace | null, nodes, tags, edges }` 로 변경 — 하위 뷰는 `workspaceId` 를 쓰고, `workspace` 가 null 인 동안은 빈 상태 문구를 띄우지 않음. 권한은 RLS 가 요청마다 검사. 실제 로그인 화면에서의 동시 시작 여부는 사용자 확인 대기(자동화 브라우저 미로그인)
+- **적용됨 (A, 2026-09-17)**: 서울 리전 `ap-northeast-2` 새 프로젝트(ref `tqcvtmrozdtqqawwvlbm`)로 이전. 사용자가 프로젝트 생성 + `link` + `db push`(마이그레이션 3개 적용 확인), `.env` 를 새 URL/publishable key 로 교체, 타입 재생성 결과 diff 없음(스키마 동일). 데이터는 새로 시작(이전 안 함). 측정: 새 연결 0.09~0.13초(첫 요청 0.84초), keep-alive 0.03~0.08초 ← 뭄바이 0.17~0.9초. 사용자 재가입 후 정상 동작 확인(2026-09-17). 남은 일: 며칠 사용 후 뭄바이 프로젝트(`zdtsuqtakmohdzingiou`) 일시정지/삭제
 - 개선안(나머지 미적용, 우선순위순): (A) 프로젝트를 서울 리전 `ap-northeast-2` 로 이전 — 리전은 변경 불가라 새 프로젝트 생성 + `db push` + 계정 재가입 + 데이터 이전 + `.env` 교체 필요, 데이터가 적은 지금이 가장 쌈 (B) 직렬 제거: URL 의 workspaceId 로 nodes/tags/edges 를 workspace 조회와 동시에 시작 (C) 5개 요청을 PostgREST 임베드 select 또는 RPC 로 1~2개로 합치기 (D) 홈 화면 idle 때 GraphView/DocView 청크 prefetch (E) 워크스페이스 데이터 세션 캐시(stale-while-revalidate)
 
 ## 최적화 후보 (필요해질 때)
@@ -104,5 +105,5 @@
 - [ ] 의미 기반 검색 고도화
 
 ## 다음 세션에서 할 일
-1. (결정) 서울 리전 이전(A) 여부 / 다음 작업: 태그 검색·필터 vs 노션 가져오기
+1. 노션 Markdown 가져오기 (PRD 11장) → 그다음 태그 검색·필터(PRD 4.5) → auto-tag
 2. 노션 Markdown 가져오기(PRD 11장) → auto-tag Edge Function
