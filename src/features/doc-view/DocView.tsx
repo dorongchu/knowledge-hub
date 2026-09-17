@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils'
  * 좌측 상단 검색창: 제목·본문·태그 이름을 fuse.js 로 검색 (PRD 4.3). 이미 불러온 노드/태그로 색인하므로 추가 조회 없음.
  */
 export function DocView() {
-  const { workspace, nodes, tags, edges } = useWorkspaceContext()
+  const { workspaceId, workspace, nodes, tags, edges } = useWorkspaceContext()
   const { nodeId } = useParams<{ nodeId?: string }>()
   const navigate = useNavigate()
   const [tagManagerOpen, setTagManagerOpen] = useState(false)
@@ -44,7 +44,7 @@ export function DocView() {
   const nodeById = useMemo(() => new Map(nodes.items.map((n) => [n.id, n])), [nodes.items])
 
   const selected = nodeId ? nodes.items.find((n) => n.id === nodeId) : undefined
-  const base = `/w/${workspace.id}/doc`
+  const base = `/w/${workspaceId}/doc`
 
   const handleCreate = async (type: NodeType) => {
     const node = await nodes.create(type)
@@ -98,7 +98,7 @@ export function DocView() {
                 </ul>
               </>
             )
-          ) : nodes.loading ? (
+          ) : nodes.loading || !workspace ? (
             <p className="p-3 text-sm text-muted-foreground">불러오는 중…</p>
           ) : nodes.items.length === 0 ? (
             <p className="p-3 text-sm text-muted-foreground">아직 노드가 없습니다. "새 노드"로 시작하세요.</p>

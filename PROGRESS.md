@@ -49,7 +49,7 @@
 - 데이터 fetch는 라이브러리 없이 훅(useState/useEffect)으로. 변경 후 목록 재조회로 서버 상태와 동기화
 - 하위 라우트(그래프뷰/문서뷰)는 `useWorkspaceContext()`(WorkspacePage의 Outlet context)로 현재 워크스페이스 접근
 - 다이얼로그 폼 상태는 DialogContent 안의 내부 컴포넌트에 두어 열릴 때마다 초기화 (effect로 리셋하지 않음)
-- 노드: WorkspacePage의 `WorkspaceBody`에서 `useNodes(workspace.id)` 한 번 호출 → Outlet context `{ workspace, nodes }` 로 그래프뷰/문서뷰 공유. 목록 조회 시 `embedding` 컬럼 제외
+- 노드: WorkspacePage의 `WorkspaceBody`에서 `useNodes(workspaceId)` 한 번 호출 → Outlet context 로 그래프뷰/문서뷰 공유(현재 형태는 아래 성능 조사 B 참고). 목록 조회 시 `embedding` 컬럼 제외
 - 노드 편집: 선택 노드는 URL `/w/:id/doc/:nodeId`. 제목/본문은 0.8초 디바운스 자동저장 + Ctrl/Cmd+S 즉시 저장, 타입 변경은 즉시 저장, 언마운트 시 잔여 변경분 flush. 목록은 로컬 갱신(재정렬 없음)
 - 새 노드는 빈 제목으로 생성(DB default), 화면에서 "제목 없음" 대체 표시, 제목 입력창 자동 포커스
 - 태그: `useTags(workspace.id)` 를 WorkspaceBody 에서 한 번 호출 → Outlet context `{ workspace, nodes, tags }`. 노드-태그 연결은 `node_tags` + `nodes!inner(workspace_id)` 조인으로 워크스페이스 단위 일괄 조회, 로컬 상태 갱신(재조회 없음)
@@ -80,7 +80,8 @@
 - Supabase 프로젝트 리전이 `ap-south-1`(뭄바이). 한국에서 REST 요청 1회 0.2~0.9초(측정: 0.28/0.52/0.65/0.86초, 1회 7.2초 스파이크. keep-alive 재사용 시에도 0.17~0.73초)
 - 워크스페이스 진입 시 요청 구조: `getWorkspace`(1회) 완료 후에야 `useNodes`(1) + `useTags`(3) + `useEdges`(1) 5개가 병렬 시작 → 왕복 2단계 직렬. 2단계는 5개 중 가장 느린 요청이 좌우(지연 편차가 커서 태그·엣지 추가 후 체감 악화). 진입할 때마다 전부 재조회(캐시 없음)
 - 문서뷰 lazy 청크 첫 로드: dev 모드 약 0.3초(요청 16개). 프로덕션은 단일 파일 485 kB(gzip 152 kB). 페이지 로드당 1회
-- 개선안(미적용, 우선순위순): (A) 프로젝트를 서울 리전 `ap-northeast-2` 로 이전 — 리전은 변경 불가라 새 프로젝트 생성 + `db push` + 계정 재가입 + 데이터 이전 + `.env` 교체 필요, 데이터가 적은 지금이 가장 쌈 (B) 직렬 제거: URL 의 workspaceId 로 nodes/tags/edges 를 workspace 조회와 동시에 시작 (C) 5개 요청을 PostgREST 임베드 select 또는 RPC 로 1~2개로 합치기 (D) 홈 화면 idle 때 GraphView/DocView 청크 prefetch (E) 워크스페이스 데이터 세션 캐시(stale-while-revalidate)
+- **적용됨 (B, 2026-09-17)**: `WorkspaceBody` 를 워크스페이스 행 조회 완료 전에 URL 의 id 만으로 즉시 마운트(`key={workspaceId}`) → getWorkspace + nodes + tags(3) + edges 6개 요청이 동시에 시작, 하위 뷰 lazy 청크도 같은 시점에 로드 시작(D 의 일부 효과). Outlet context 는 `{ workspaceId, workspace: Workspace | null, nodes, tags, edges }` 로 변경 — 하위 뷰는 `workspaceId` 를 쓰고, `workspace` 가 null 인 동안은 빈 상태 문구를 띄우지 않음. 권한은 RLS 가 요청마다 검사. 실제 로그인 화면에서의 동시 시작 여부는 사용자 확인 대기(자동화 브라우저 미로그인)
+- 개선안(나머지 미적용, 우선순위순): (A) 프로젝트를 서울 리전 `ap-northeast-2` 로 이전 — 리전은 변경 불가라 새 프로젝트 생성 + `db push` + 계정 재가입 + 데이터 이전 + `.env` 교체 필요, 데이터가 적은 지금이 가장 쌈 (B) 직렬 제거: URL 의 workspaceId 로 nodes/tags/edges 를 workspace 조회와 동시에 시작 (C) 5개 요청을 PostgREST 임베드 select 또는 RPC 로 1~2개로 합치기 (D) 홈 화면 idle 때 GraphView/DocView 청크 prefetch (E) 워크스페이스 데이터 세션 캐시(stale-while-revalidate)
 
 ## 최적화 후보 (필요해질 때)
 - 노드 목록 조회에서 본문 분리: 지금은 `listNodes` 가 모든 노드의 content 를 한 번에 가져옴(그래프 발췌·미리보기용). 노드 수/본문 총량이 커지면 목록은 발췌만, 본문은 선택 시 개별 조회로 변경
@@ -103,5 +104,5 @@
 - [ ] 의미 기반 검색 고도화
 
 ## 다음 세션에서 할 일
-1. (결정) 성능 개선안 A~E 중 적용할 것 / 태그 검색·필터와 노션 가져오기 순서
+1. (결정) 서울 리전 이전(A) 여부 / 다음 작업: 태그 검색·필터 vs 노션 가져오기
 2. 노션 Markdown 가져오기(PRD 11장) → auto-tag Edge Function

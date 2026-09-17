@@ -41,7 +41,7 @@ function toFlowEdge(e: KnowledgeEdge, selected: boolean): Edge {
  * 수동 연결: 노드 네 면의 점에서 끌어 다른 노드 아무 곳에나 놓는다. 엣지 클릭 시 라벨 편집/삭제 패널.
  */
 export function GraphView() {
-  const { workspace, nodes, edges } = useWorkspaceContext()
+  const { workspaceId, workspace, nodes, edges } = useWorkspaceContext()
   const navigate = useNavigate()
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<KnowledgeFlowNode>([])
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>([])
@@ -81,7 +81,7 @@ export function GraphView() {
 
   const titleOf = useCallback((nodeId: string) => nodes.items.find((n) => n.id === nodeId)?.title || DEFAULT_NODE_TITLE, [nodes.items])
 
-  const openInDoc = useCallback((nodeId: string) => navigate(`/w/${workspace.id}/doc/${nodeId}`), [navigate, workspace.id])
+  const openInDoc = useCallback((nodeId: string) => navigate(`/w/${workspaceId}/doc/${nodeId}`), [navigate, workspaceId])
 
   const onNodeDoubleClick: NodeMouseHandler<KnowledgeFlowNode> = useCallback((_e, node) => openInDoc(node.id), [openInDoc])
 
@@ -142,11 +142,11 @@ export function GraphView() {
           <Controls showInteractive={false} />
         </ReactFlow>
 
-        {!nodes.loading && nodes.items.length === 0 && (
+        {workspace && !nodes.loading && nodes.items.length === 0 && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div className="pointer-events-auto rounded-lg border bg-background/95 p-6 text-center text-sm text-muted-foreground shadow-sm">
               <p className="mb-2">아직 노드가 없습니다.</p>
-              <Link to={`/w/${workspace.id}/doc`} className="underline">
+              <Link to={`/w/${workspaceId}/doc`} className="underline">
                 문서뷰에서 첫 노드 만들기
               </Link>
             </div>

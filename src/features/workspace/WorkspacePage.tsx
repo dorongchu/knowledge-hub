@@ -9,7 +9,10 @@ import { toMessage } from './useWorkspaces'
 
 /** 하위 라우트(그래프뷰/문서뷰)에서 `useWorkspaceContext()` 로 현재 워크스페이스, 노드 목록, 태그 체계에 접근 */
 export interface WorkspaceOutletContext {
-  workspace: Workspace
+  /** URL 의 워크스페이스 id. 항상 있다 */
+  workspaceId: string
+  /** 워크스페이스 행. 조회가 끝나기 전에는 null (하위 뷰는 데이터 조회를 기다리지 않고 먼저 마운트된다) */
+  workspace: Workspace | null
   nodes: NodesApi
   tags: TagsApi
   edges: EdgesApi
@@ -84,16 +87,24 @@ export function WorkspacePage() {
         </nav>
       </header>
       <div className="min-h-0 flex-1">
-        {state.status === 'ready' && <WorkspaceBody workspace={state.workspace} />}
+        {workspaceId && (
+          // key: 다른 워크스페이스로 바뀌면 이전 노드/태그/엣지 상태를 버리고 새로 시작
+          <WorkspaceBody key={workspaceId} workspaceId={workspaceId} workspace={state.status === 'ready' ? state.workspace : null} />
+        )}
       </div>
     </div>
   )
 }
 
-/** workspace 가 준비된 뒤에만 마운트되어 useNodes 를 무조건 호출할 수 있게 분리 */
-function WorkspaceBody({ workspace }: { workspace: Workspace }) {
-  const nodes = useNodes(workspace.id)
-  const tags = useTags(workspace.id)
-  const edges = useEdges(workspace.id)
-  return <Outlet context={{ workspace, nodes, tags, edges } satisfies WorkspaceOutletContext} />
+/**
+ * 워크스페이스 행 조회를 기다리지 않고 URL 의 id 만으로 바로 마운트된다 (2026-09-17 성능 개선 B).
+ * → getWorkspace / nodes / tags(3) / edges 요청이 모두 동시에 나가고, 하위 뷰의 lazy 청크도 같은 시점에 받기 시작한다.
+ * 권한은 RLS 가 요청마다 검사하므로 id 만으로 조회해도 남의 데이터는 빈 결과가 된다.
+ * 없는/남의 워크스페이스면 상위가 "찾을 수 없음" 화면으로 바뀌면서 이 컴포넌트는 언마운트된다.
+ */
+function WorkspaceBody({ workspaceId, workspace }: { workspaceId: string; workspace: Workspace | null }) {
+  const nodes = useNodes(workspaceId)
+  const tags = useTags(workspaceId)
+  const edges = useEdges(workspaceId)
+  return <Outlet context={{ workspaceId, workspace, nodes, tags, edges } satisfies WorkspaceOutletContext} />
 }
