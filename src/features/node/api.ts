@@ -33,6 +33,44 @@ export async function createNode(input: { workspace_id: string; type: NodeType; 
   return data
 }
 
+/**
+ * 가져오기용 일괄 생성. 한 요청이 과도해지지 않게 개수(25개)와 용량(약 1.5 MB) 둘 다로 묶음을 나눈다.
+ * 중간에 실패하면 그때까지 생성된 노드를 에러 객체의 `createdSoFar` 로 돌려준다.
+ */
+const INSERT_CHUNK_ROWS = 25
+const INSERT_CHUNK_CHARS = 1_500_000
+
+export async function createNodes(
+  workspaceId: string,
+  inputs: Array<{ type: NodeType; title: string; content: string }>,
+  onProgress?: (done: number, total: number) => void,
+): Promise<KnowledgeNode[]> {
+  const chunks: Array<typeof inputs> = []
+  let current: typeof inputs = []
+  let chars = 0
+  for (const input of inputs) {
+    const size = input.title.length + input.content.length
+    if (current.length > 0 && (current.length >= INSERT_CHUNK_ROWS || chars + size > INSERT_CHUNK_CHARS)) {
+      chunks.push(current)
+      current = []
+      chars = 0
+    }
+    current.push(input)
+    chars += size
+  }
+  if (current.length > 0) chunks.push(current)
+
+  const created: KnowledgeNode[] = []
+  for (const chunk of chunks) {
+    const rows = chunk.map((n) => ({ ...n, workspace_id: workspaceId }))
+    const { data, error } = await supabase.from('nodes').insert(rows).select(NODE_COLUMNS)
+    if (error) throw Object.assign(error, { createdSoFar: created })
+    created.push(...data)
+    onProgress?.(created.length, inputs.length)
+  }
+  return created
+}
+
 export type NodePatch = Partial<Pick<KnowledgeNode, 'type' | 'title' | 'content' | 'position_x' | 'position_y'>>
 
 export async function updateNode(id: string, patch: NodePatch): Promise<KnowledgeNode> {

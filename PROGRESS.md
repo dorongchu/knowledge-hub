@@ -37,7 +37,7 @@
 - [x] 수동 노드 간 연결(엣지) 생성 — 사용자 브라우저 테스트 통과(2026-09-17, easy-connect + 플로팅 엣지 개선 포함). `features/edge/{api,useEdges}.ts`, `graph-view/{GraphView,EdgePanel}.tsx`
 - [x] 텍스트 검색 (fuse.js) — 사용자 브라우저 테스트 통과(2026-09-17). `features/search/{searchIndex,Highlight,SearchInput,GlobalSearch}.tsx`, `lib/plainText.ts`
 - [ ] 태그 검색·필터 (PRD 4.5, 2026-09-17 추가) — 텍스트 검색 색인에서 태그 제거(`searchIndex.ts` keys, `DocView` 의 tagNames 전달, 태그 칩 강조 제거) + 문서뷰 사이드바 태그 필터(이름 검색, 카테고리별 묶음, 노드 수, 복수 선택 AND 기본/OR 전환, 칩 클릭으로 필터, 텍스트 검색과 병용). 두 변경은 함께 배포(태그 제외만 먼저 하면 태그로 찾을 방법이 없어짐)
-- [ ] 노션 Markdown 가져오기 (`features/import`) — .zip/.md 업로드 → 미리보기 → 노드 생성. PRD 11장 (2026-09-17 추가)
+- [x] 노션 Markdown 가져오기 (PRD 11장) — 사용자가 실제 노션 내보내기로 테스트 통과(2026-09-17). 파싱 로직은 브라우저에서 모의 노션 zip 으로 검증(한글 파일명, 32자리 ID 제거, BOM/CRLF, 중첩 zip, 이미지·CSV·1 MB 초과 건너뛰기, __MACOSX 무시). `features/import/{parseNotion.ts,ImportDialog.tsx}`, `node/api.ts createNodes`, `useNodes.createMany`
 
 ### AI 기능 (Edge Function)
 - [ ] `auto-tag` 함수: 세션 검증 + 소유권 검증 + 레이트리밋 → 태그 후보를 응답으로만 반환(DB 미기록) → 편집기 "태그 제안 받기" 버튼 + 임시 표시 승인 UI → 승인분만 `tags`/`node_tags(source: ai)` 저장. 세션 내 노드별 마지막 제안은 메모리 보관
@@ -60,6 +60,8 @@
 - (이전 방식, 대체됨) 그래프 연결 UX: 아래 Handle(source) → 위 Handle(target) 드래그. `isValidConnection` 으로 자기 연결·같은 방향 중복을 DB 제약과 같은 기준으로 사전 차단(A→B 와 B→A 는 둘 다 허용). 엣지 클릭 → `EdgePanel`(라벨 편집: Enter/blur 저장, 2단계 삭제). 키보드 Delete 삭제는 비활성(`deleteKeyCode={null}`)
 - 문서뷰 편집기 하단에 연결된 노드 목록(방향 화살표 + 라벨, 클릭 시 해당 노드로 이동) — 읽기 전용, 생성/편집은 그래프뷰에서만
 - 검색: fuse.js 클라이언트 검색. (태그는 PRD v0.3 에서 텍스트 검색 대상 제외로 결정 — 태그 검색·필터 구현 때 함께 제거 예정) 현재 색인 대상은 제목(0.5)·태그 이름(0.3)·본문 평문(0.2, `markdownToPlainText`), threshold 0.34, ignoreLocation, 연속 2글자 이상 일치 필요, 검색어 2글자 이상. 워크스페이스 내 검색은 문서뷰 사이드바(이미 불러온 노드/태그로 색인, `useDeferredValue`), 전체 검색은 홈 화면(첫 포커스 때 내 모든 노드의 제목·본문을 한 번 조회, 태그 제외). 강조는 `<mark>` React 노드로만 렌더(HTML 주입 없음)
+- 가져오기: 파싱은 전부 브라우저(`fflate`), 원본 미전송. 제한 상수는 `parseNotion.ts`(파일당 1 MB, 200개, zip 100 MB, card 기준 평문 500자). 제목만 있고 본문이 빈 페이지도 후보로 포함(노션의 빈 페이지). 일괄 insert 는 25개 또는 약 1.5 MB 단위로 나눠 요청, 중간 실패 시 성공분은 목록에 반영하고 결과 화면에 표시. 진입점은 문서뷰 사이드바의 가져오기 아이콘
+- 렌더 링크 정책(`lib/markdown.ts`): http/https/mailto 만 href 허용(`ALLOWED_URI_REGEXP`). 노션 내보내기의 상대 경로 링크·이미지는 주소가 제거되고 글자/대체 텍스트만 남음 (PRD 11.3 의 내부 링크→엣지 변환 확장 때 재검토)
 - 본문 편집: TipTap v3 `useEditor({ content, contentType: 'markdown' })` 로 Markdown 파싱, `editor.getMarkdown()` 으로 직렬화(마크다운 특수문자는 백슬래시 이스케이프됨). 노드 전환 시 `key` 로 에디터 재마운트. 툴바 상태는 `useEditorState` 셀렉터로 구독
 - 본문 렌더(읽기): 반드시 `renderMarkdown()`(marked → DOMPurify, style/form/iframe 등 금지, 링크는 target=_blank + noopener) → `MarkdownView`. 다른 곳에서 `dangerouslySetInnerHTML` 직접 사용 금지
 - Tailwind `@tailwindcss/typography` 플러그인(`prose` 클래스)으로 에디터/뷰 스타일 통일
@@ -105,5 +107,5 @@
 - [ ] 의미 기반 검색 고도화
 
 ## 다음 세션에서 할 일
-1. 노션 Markdown 가져오기 (PRD 11장) → 그다음 태그 검색·필터(PRD 4.5) → auto-tag
+1. 태그 검색·필터(PRD 4.5) → auto-tag Edge Function
 2. 노션 Markdown 가져오기(PRD 11장) → auto-tag Edge Function

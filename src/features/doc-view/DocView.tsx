@@ -1,6 +1,6 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { NavLink, useNavigate, useParams } from 'react-router'
-import { FileText, Plus, StickyNote, Tags } from 'lucide-react'
+import { FileText, FileUp, Plus, StickyNote, Tags } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,6 +12,7 @@ import {
 import { useWorkspaceContext } from '@/features/workspace/WorkspacePage'
 import { NodeEditor } from '@/features/node/NodeEditor'
 import { DEFAULT_NODE_TITLE, NODE_TYPE_LABEL, type KnowledgeNode, type NodeType } from '@/features/node/api'
+import { ImportDialog } from '@/features/import/ImportDialog'
 import { TagManagerDialog } from '@/features/tag/TagManagerDialog'
 import type { TagsApi } from '@/features/tag/useTags'
 import { Highlight } from '@/features/search/Highlight'
@@ -30,6 +31,7 @@ export function DocView() {
   const { nodeId } = useParams<{ nodeId?: string }>()
   const navigate = useNavigate()
   const [tagManagerOpen, setTagManagerOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query)
 
@@ -56,7 +58,10 @@ export function DocView() {
       <aside className="flex w-72 shrink-0 flex-col border-r">
         <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
           <span className="text-sm text-muted-foreground">노드 {nodes.items.length}개</span>
-          <Button variant="ghost" size="icon-sm" className="ml-auto" aria-label="태그 관리" title="태그 관리" onClick={() => setTagManagerOpen(true)}>
+          <Button variant="ghost" size="icon-sm" className="ml-auto" aria-label="노션에서 가져오기" title="노션에서 가져오기" onClick={() => setImportOpen(true)}>
+            <FileUp />
+          </Button>
+          <Button variant="ghost" size="icon-sm" aria-label="태그 관리" title="태그 관리" onClick={() => setTagManagerOpen(true)}>
             <Tags />
           </Button>
           <DropdownMenu>
@@ -142,6 +147,7 @@ export function DocView() {
       </section>
 
       <TagManagerDialog open={tagManagerOpen} onOpenChange={setTagManagerOpen} tags={tags} />
+      <ImportDialog open={importOpen} onOpenChange={setImportOpen} nodes={nodes} />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toMessage } from '@/features/workspace/useWorkspaces'
-import { createNode, deleteNode, listNodes, updateNode, type KnowledgeNode, type NodePatch, type NodeType } from './api'
+import { createNode, createNodes, deleteNode, listNodes, updateNode, type KnowledgeNode, type NodePatch, type NodeType } from './api'
 
 interface State {
   items: KnowledgeNode[]
@@ -11,6 +11,11 @@ interface State {
 export interface NodesApi extends State {
   refresh: () => Promise<void>
   create: (type: NodeType) => Promise<KnowledgeNode>
+  /** 가져오기용 일괄 생성. 일부만 성공하고 실패해도 성공한 만큼은 목록에 반영한다 */
+  createMany: (
+    inputs: Array<{ type: NodeType; title: string; content: string }>,
+    onProgress?: (done: number, total: number) => void,
+  ) => Promise<KnowledgeNode[]>
   update: (id: string, patch: NodePatch) => Promise<KnowledgeNode>
   remove: (id: string) => Promise<void>
 }
@@ -44,6 +49,21 @@ export function useNodes(workspaceId: string): NodesApi {
     [workspaceId],
   )
 
+  const createMany = useCallback<NodesApi['createMany']>(
+    async (inputs, onProgress) => {
+      try {
+        const created = await createNodes(workspaceId, inputs, onProgress)
+        setState((s) => ({ ...s, items: [...created, ...s.items] }))
+        return created
+      } catch (e) {
+        const partial = (e as { createdSoFar?: KnowledgeNode[] }).createdSoFar ?? []
+        if (partial.length > 0) setState((s) => ({ ...s, items: [...partial, ...s.items] }))
+        throw e
+      }
+    },
+    [workspaceId],
+  )
+
   const update = useCallback(async (id: string, patch: NodePatch) => {
     const node = await updateNode(id, patch)
     setState((s) => ({ ...s, items: s.items.map((n) => (n.id === id ? node : n)) }))
@@ -55,5 +75,5 @@ export function useNodes(workspaceId: string): NodesApi {
     setState((s) => ({ ...s, items: s.items.filter((n) => n.id !== id) }))
   }, [])
 
-  return { ...state, refresh, create, update, remove }
+  return { ...state, refresh, create, createMany, update, remove }
 }
