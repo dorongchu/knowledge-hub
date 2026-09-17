@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 're
 import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
+import { MarkdownEditor } from './MarkdownEditor'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,13 +28,12 @@ interface Props {
 }
 
 /**
- * 노드 편집기 (MVP: 제목 + 타입 + Markdown textarea). 다음 단계에서 본문을 TipTap 으로 교체한다.
+ * 노드 편집기: 제목 + 타입 + 본문(TipTap Markdown 에디터).
  * 부모는 `key={node.id}` 로 마운트해 노드가 바뀌면 로컬 상태가 초기화되도록 한다.
  * 저장: 제목/본문은 입력 후 AUTOSAVE_DELAY_MS 디바운스, 타입은 즉시. Ctrl/Cmd+S 로 즉시 저장.
  */
 export function NodeEditor({ node, onSave, onDelete }: Props) {
   const [title, setTitle] = useState(node.title)
-  const [content, setContent] = useState(node.content)
   const [status, setStatus] = useState<SaveStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -134,15 +133,11 @@ export function NodeEditor({ node, onSave, onDelete }: Props) {
           }}
           className="text-lg font-medium"
         />
-        <Textarea
-          aria-label="본문 (Markdown)"
-          placeholder={node.type === 'card' ? '짧은 개념 설명을 적어 보세요' : 'Markdown 으로 작성'}
-          value={content}
-          onChange={(e) => {
-            setContent(e.target.value)
-            schedule({ content: e.target.value })
-          }}
-          className="min-h-0 flex-1 resize-none font-mono text-sm"
+        <MarkdownEditor
+          initialMarkdown={node.content}
+          placeholder={node.type === 'card' ? '짧은 개념 설명을 적어 보세요' : 'Markdown 으로 작성 (예: # 제목, **굵게**, - 목록)'}
+          onChange={(md) => schedule({ content: md })}
+          className="min-h-0 flex-1"
         />
       </div>
 

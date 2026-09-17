@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DEFAULT_NODE_TITLE, NODE_TYPE_LABEL, type KnowledgeNode } from '@/features/node/api'
 import { formatRelativeTime } from '@/lib/format'
+import { MarkdownView } from '@/components/MarkdownView'
 
 interface Props {
   node: KnowledgeNode
@@ -12,8 +13,7 @@ interface Props {
 
 /**
  * 그래프에서 노드 클릭 시 오른쪽에 뜨는 미리보기 (PRD 4.2).
- * 본문은 HTML 로 렌더하지 않고 원문 텍스트로만 보여준다 → sanitize 대상 아님.
- * Markdown 렌더링(+DOMPurify)은 "문서뷰" 단계에서 공용 컴포넌트로 만들어 여기서도 재사용.
+ * 본문은 MarkdownView(marked + DOMPurify sanitize) 로 렌더한다 — CLAUDE.md 절대 규칙 6.
  */
 export function NodePreviewPanel({ node, onOpenInDoc, onClose }: Props) {
   const Icon = node.type === 'doc' ? FileText : StickyNote
@@ -34,7 +34,7 @@ export function NodePreviewPanel({ node, onOpenInDoc, onClose }: Props) {
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         <h2 className="mb-3 text-base font-semibold">{node.title || DEFAULT_NODE_TITLE}</h2>
         {node.content ? (
-          <pre className="whitespace-pre-wrap font-sans text-sm text-foreground/90">{node.content}</pre>
+          <MarkdownView markdown={node.content} />
         ) : (
           <p className="text-sm text-muted-foreground">본문이 비어 있습니다.</p>
         )}

@@ -1,10 +1,15 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
 import { RequireAuth } from '@/features/auth/RequireAuth'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { WorkspaceListPage } from '@/features/workspace/WorkspaceListPage'
 import { WorkspacePage } from '@/features/workspace/WorkspacePage'
-import { GraphView } from '@/features/graph-view/GraphView'
-import { DocView } from '@/features/doc-view/DocView'
+
+// 무거운 뷰(React Flow, TipTap)는 라우트 단위로 분리 로드
+const GraphView = lazy(() => import('@/features/graph-view/GraphView').then((m) => ({ default: m.GraphView })))
+const DocView = lazy(() => import('@/features/doc-view/DocView').then((m) => ({ default: m.DocView })))
+
+const viewFallback = <div className="flex h-full items-center justify-center text-sm text-muted-foreground">불러오는 중…</div>
 
 /**
  * 라우트 구조 (PRD 4장)
@@ -24,8 +29,22 @@ export default function App() {
         <Route path="/" element={<WorkspaceListPage />} />
         <Route path="/w/:workspaceId" element={<WorkspacePage />}>
           <Route index element={<Navigate to="graph" replace />} />
-          <Route path="graph" element={<GraphView />} />
-          <Route path="doc/:nodeId?" element={<DocView />} />
+          <Route
+            path="graph"
+            element={
+              <Suspense fallback={viewFallback}>
+                <GraphView />
+              </Suspense>
+            }
+          />
+          <Route
+            path="doc/:nodeId?"
+            element={
+              <Suspense fallback={viewFallback}>
+                <DocView />
+              </Suspense>
+            }
+          />
         </Route>
       </Route>
 

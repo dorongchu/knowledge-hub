@@ -1,7 +1,7 @@
 # PROGRESS — 지식정리 웹앱
 
 ## 현재 상태
-인프라·프론트엔드 골격·로그인·워크스페이스 CRUD·노드 CRUD·그래프뷰(노드 표시/미리보기/문서뷰 전환) 완료. git 저장소 GitHub 연동됨. (2026-09-13 기준)
+인프라·프론트엔드 골격·로그인·워크스페이스 CRUD·노드 CRUD·그래프뷰·문서뷰(TipTap + sanitize) 완료. 남은 Phase 1: 태그, 엣지, 검색, AI auto-tag. (2026-09-13 기준)
 
 - Supabase CLI: `npx supabase` (devDependency, v2.117.0). 프로젝트 링크됨 (ref: `supabase/.temp/project-ref`).
 - 마이그레이션 (2026-09-13 `db push` 성공):
@@ -32,7 +32,7 @@
 - [x] 워크스페이스 CRUD — `features/workspace/{api,useWorkspaces,WorkspaceDialogs,WorkspaceListPage,WorkspacePage}.tsx`. 목록(최근 수정순, 노드 수), 생성→상세 이동, 이름 변경, 삭제(확인 다이얼로그) 브라우저 검증 완료
 - [x] 노드 CRUD (카드/문서 타입) — `features/node/{api,useNodes,NodeEditor}.tsx`, 문서뷰(`features/doc-view/DocView.tsx`)에 목록+편집기. 생성/자동저장/타입 변경/삭제/새로고침 유지 브라우저 검증 완료
 - [x] 그래프뷰 (`@xyflow/react` v12) — `features/graph-view/{GraphView,KnowledgeFlowNode,NodePreviewPanel,layout,types}.tsx`. 노드 표시(카드/문서 크기·아이콘 구분), 클릭 시 우측 미리보기 패널, 더블클릭·"문서뷰에서 편집" 버튼으로 `/w/:id/doc/:nodeId` 전환. 브라우저 검증 완료(더블클릭·드래그는 JS 이벤트로 검증)
-- [ ] 문서뷰 (TipTap 에디터) — 노드 트리, Markdown 저장, sanitize 렌더링
+- [x] 문서뷰 (TipTap 에디터) — 노드 목록, Markdown 저장, sanitize 렌더링. `features/node/MarkdownEditor.tsx`(TipTap v3 + `@tiptap/markdown`, 툴바), `lib/markdown.ts`(marked + DOMPurify), `components/MarkdownView.tsx`(그래프 미리보기에 사용). 브라우저 검증: 자동저장, H1 서식 Markdown 왕복, script/onerror/javascript: 제거 확인
 - [ ] 수동 태그 CRUD (카테고리 + 자유 태그)
 - [ ] 수동 노드 간 연결(엣지) 생성
 - [ ] 텍스트 검색 (fuse.js)
@@ -50,10 +50,12 @@
 - 노드: WorkspacePage의 `WorkspaceBody`에서 `useNodes(workspace.id)` 한 번 호출 → Outlet context `{ workspace, nodes }` 로 그래프뷰/문서뷰 공유. 목록 조회 시 `embedding` 컬럼 제외
 - 노드 편집: 선택 노드는 URL `/w/:id/doc/:nodeId`. 제목/본문은 0.8초 디바운스 자동저장 + Ctrl/Cmd+S 즉시 저장, 타입 변경은 즉시 저장, 언마운트 시 잔여 변경분 flush. 목록은 로컬 갱신(재정렬 없음)
 - 새 노드는 빈 제목으로 생성(DB default), 화면에서 "제목 없음" 대체 표시, 제목 입력창 자동 포커스
-- 본문은 아직 textarea(원문 Markdown). TipTap 교체와 DOMPurify sanitize 렌더링은 "문서뷰" 단계에서
+- 본문 편집: TipTap v3 `useEditor({ content, contentType: 'markdown' })` 로 Markdown 파싱, `editor.getMarkdown()` 으로 직렬화(마크다운 특수문자는 백슬래시 이스케이프됨). 노드 전환 시 `key` 로 에디터 재마운트. 툴바 상태는 `useEditorState` 셀렉터로 구독
+- 본문 렌더(읽기): 반드시 `renderMarkdown()`(marked → DOMPurify, style/form/iframe 등 금지, 링크는 target=_blank + noopener) → `MarkdownView`. 다른 곳에서 `dangerouslySetInnerHTML` 직접 사용 금지
+- Tailwind `@tailwindcss/typography` 플러그인(`prose` 클래스)으로 에디터/뷰 스타일 통일
+- 라우트 lazy import 적용: index 355 kB / GraphView 253 kB / DocView 461 kB (gzip 114/83/145 kB)
 - 그래프 노드 위치: `nodes.position_x/position_y` 에 영구 저장 (null 이면 격자 자동 배치). 드래그 종료 시 `nodes.update` 로 저장, 실패는 무시(다음 새로고침 때 마지막 저장 위치). 위치 변경은 `updated_at` 을 바꾸지 않음 (트리거 조건) → 목록 정렬/홈 최근 수정순에 영향 없음
 - 그래프 미리보기 패널은 본문을 원문 텍스트(`<pre>`)로 표시 → HTML 렌더 아님. Markdown 렌더(+DOMPurify) 컴포넌트는 문서뷰 단계에서 만들어 재사용
-- 번들 858 kB(gzip 265 kB). 그래프뷰/문서뷰 라우트 단위 lazy import 로 code-split 예정 (TipTap 추가 전후)
 
 ## 스키마 결정 사항 (2026-09-13)
 - 임베딩 차원: `vector(1024)` (Voyage voyage-3 계열 기준). HNSW cosine 인덱스 생성됨
@@ -78,5 +80,5 @@
 - [ ] 의미 기반 검색 고도화
 
 ## 다음 세션에서 할 일
-1. 문서뷰 고도화 — TipTap 에디터 + DOMPurify sanitize 렌더링 (미리보기 패널에도 재사용)
-2. 수동 태그 CRUD → 수동 엣지 생성(그래프에서 Handle 드래그) → 텍스트 검색
+1. 수동 태그 CRUD — 카테고리 + 자유 태그. 워크스페이스 태그 관리 UI + 노드 편집기에서 태그 붙이기/떼기
+2. 수동 엣지 생성(그래프에서 Handle 드래그, 라벨) → 텍스트 검색(fuse.js) → auto-tag Edge Function
