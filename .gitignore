@@ -9,3 +9,6 @@ supabase/.branches/
 *.log
 *.local
 .idea
+
+# bkit 플러그인 상태 (개인 도구 내부 파일)
+.bkit/
