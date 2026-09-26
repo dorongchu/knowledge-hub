@@ -22,6 +22,8 @@ export interface ImportCandidate {
   /** Markdown 기호를 걷어낸 평문 글자 수 */
   chars: number
   suggestedType: NodeType
+  /** zip 안 최상위 폴더 이름(노션 ID 제거). 낱개 파일이나 zip 루트의 파일은 null (PRD 11.2 v0.4) */
+  topFolder: string | null
 }
 
 export type SkipReason = 'too-large' | 'over-limit' | 'not-markdown' | 'empty' | 'unreadable'
@@ -50,6 +52,14 @@ const isZip = (name: string) => /\.zip$/i.test(name)
 const isJunk = (name: string) => name.startsWith('__MACOSX/') || /(^|\/)\.[^/]+$/.test(name)
 const baseName = (path: string) => path.split('/').pop() ?? path
 
+/** 경로의 첫 폴더 세그먼트에서 노션 ID 를 뗀 이름. 폴더가 없으면 null */
+export function topFolderOf(path: string): string | null {
+  const parts = path.split('/')
+  if (parts.length < 2) return null
+  const name = parts[0].replace(/\s+[0-9a-f]{32}$/i, '').trim()
+  return name === '' ? null : name
+}
+
 /** 파일명 → 제목 대체값: 확장자와, 노션이 끝에 붙이는 32자리 16진수 ID 를 뗀다 */
 export function titleFromFileName(path: string): string {
   return baseName(path)
@@ -59,7 +69,7 @@ export function titleFromFileName(path: string): string {
 }
 
 /** Markdown 한 개 → 제목/본문/타입 (PRD 11.2). 제목과 본문이 모두 비면 null */
-export function parseNotionMarkdown(sourceName: string, raw: string): Omit<ImportCandidate, 'key'> | null {
+export function parseNotionMarkdown(sourceName: string, raw: string): Omit<ImportCandidate, 'key' | 'topFolder'> | null {
   const text = raw.replace(/^﻿/, '').replace(/\r\n?/g, '\n')
   const lines = text.split('\n')
 
@@ -158,7 +168,7 @@ export async function parseImportFiles(files: File[]): Promise<ParseResult> {
     }
     const parsed = parseNotionMarkdown(name, text)
     if (!parsed) skipped.push({ name, reason: 'empty' })
-    else candidates.push({ ...parsed, key: `${candidates.length}:${name}` })
+    else candidates.push({ ...parsed, key: `${candidates.length}:${name}`, topFolder: topFolderOf(name) })
   }
 
   return { candidates, skipped }

@@ -168,6 +168,41 @@ export type Database = {
           },
         ]
       }
+      folders: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folders_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       node_tags: {
         Row: {
           created_at: string
@@ -209,6 +244,7 @@ export type Database = {
           content: string
           created_at: string
           embedding: string | null
+          folder_id: string | null
           id: string
           position_x: number | null
           position_y: number | null
@@ -221,6 +257,7 @@ export type Database = {
           content?: string
           created_at?: string
           embedding?: string | null
+          folder_id?: string | null
           id?: string
           position_x?: number | null
           position_y?: number | null
@@ -233,6 +270,7 @@ export type Database = {
           content?: string
           created_at?: string
           embedding?: string | null
+          folder_id?: string | null
           id?: string
           position_x?: number | null
           position_y?: number | null
@@ -242,6 +280,13 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "nodes_folder_fkey"
+            columns: ["folder_id", "workspace_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id", "workspace_id"]
+          },
           {
             foreignKeyName: "nodes_workspace_id_fkey"
             columns: ["workspace_id"]

@@ -41,7 +41,7 @@ function toFlowEdge(e: KnowledgeEdge, selected: boolean): Edge {
  * 수동 연결: 노드 네 면의 점에서 끌어 다른 노드 아무 곳에나 놓는다. 엣지 클릭 시 라벨 편집/삭제 패널.
  */
 export function GraphView() {
-  const { workspaceId, workspace, nodes, edges } = useWorkspaceContext()
+  const { workspaceId, workspace, nodes, edges, folders, folderFilter, setFolderFilter } = useWorkspaceContext()
   const navigate = useNavigate()
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<KnowledgeFlowNode>([])
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>([])
@@ -60,11 +60,12 @@ export function GraphView() {
           type: KNOWLEDGE_NODE_TYPE,
           position: existing?.position ?? resolvePosition(n, i, total),
           selected: existing?.selected ?? false,
-          data: { node: n },
+          // 폴더 필터(PRD 12.4 1차): 다른 폴더의 노드는 흐리게
+          data: { node: n, folderName: n.folder_id ? folders.nameOf(n.folder_id) : null, dimmed: folderFilter !== null && n.folder_id !== folderFilter },
         }
       })
     })
-  }, [nodes.items, setFlowNodes])
+  }, [nodes.items, folders, folderFilter, setFlowNodes])
 
   // DB 엣지 목록 → React Flow 엣지 (선택 상태 유지)
   useEffect(() => {
@@ -150,6 +151,19 @@ export function GraphView() {
                 문서뷰에서 첫 노드 만들기
               </Link>
             </div>
+          </div>
+        )}
+        {folders.items.length > 0 && (
+          <div className="absolute top-3 right-3 flex items-center gap-1 rounded-md border bg-background/95 px-2 py-1 text-xs shadow-sm">
+            <span className="text-muted-foreground">폴더</span>
+            <select aria-label="폴더로 강조" value={folderFilter ?? ''} onChange={(e) => setFolderFilter(e.target.value === '' ? null : e.target.value)} className="h-6 max-w-40 rounded border bg-background px-1 text-xs">
+              <option value="">전체</option>
+              {folders.items.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
           </div>
         )}
         {nodes.items.length >= 2 && edges.items.length === 0 && !edges.loading && (

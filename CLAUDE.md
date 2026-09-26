@@ -34,7 +34,8 @@
 
 ```
 workspaces (id, owner_id, name, created_at, updated_at)  -- updated_at: 홈 화면 최근 수정순 정렬용, 노드 변경 시 트리거로 갱신
-nodes (id, workspace_id, type: card|doc, title, content, embedding vector(1024), position_x, position_y, created_at, updated_at)  -- 1024 = Voyage voyage-3 계열. position_*: 그래프뷰 좌표(null이면 자동 배치). updated_at은 title/content/type 변경 시에만 갱신
+nodes (id, workspace_id, type: card|doc, title, content, embedding vector(1024), folder_id nullable, position_x, position_y, created_at, updated_at)  -- 1024 = Voyage voyage-3 계열. position_*: 그래프뷰 좌표(null이면 자동 배치). updated_at은 title/content/type 변경 시에만 갱신
+folders (id, workspace_id, name, sort_order, created_at, updated_at)  -- 워크스페이스 안의 선택적 1단계 묶음(PRD 12장). 노드는 최대 1개 폴더. 폴더 삭제 시 nodes.folder_id 는 null
 categories (id, workspace_id, name)
 tags (id, workspace_id, name, category_id nullable)
 node_tags (node_id, tag_id, source: ai|manual)

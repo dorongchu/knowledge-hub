@@ -19,10 +19,11 @@ const mock = (id: string, title: string, type: 'card' | 'doc', x: number, y: num
     content: type === 'doc' ? '긴 문서 노드의 본문 발췌가 여기에 표시됩니다.' : '',
     position_x: x,
     position_y: y,
+    folder_id: null,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
   }
-  return { id, type: KNOWLEDGE_NODE_TYPE, position: { x, y }, data: { node } }
+  return { id, type: KNOWLEDGE_NODE_TYPE, position: { x, y }, data: { node, folderName: null, dimmed: false } }
 }
 
 const initialNodes: KnowledgeFlowNode[] = [

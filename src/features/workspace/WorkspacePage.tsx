@@ -6,6 +6,7 @@ import { useTags, type TagsApi } from '@/features/tag/useTags'
 import { useTagFilter, type TagFilterApi } from '@/features/tag/useTagFilter'
 import { useEdges, type EdgesApi } from '@/features/edge/useEdges'
 import { useTagSuggestions, type TagSuggestionsApi } from '@/features/ai/useTagSuggestions'
+import { useFolders, type FoldersApi } from '@/features/folder/useFolders'
 import { getWorkspace, type Workspace } from './api'
 import { toMessage } from './useWorkspaces'
 
@@ -22,6 +23,10 @@ export interface WorkspaceOutletContext {
   tagFilter: TagFilterApi
   /** AI 태그 제안의 세션 내 보관소 (DB 에 저장하지 않음 — PRD 5장) */
   tagSuggestions: TagSuggestionsApi
+  /** 폴더 (PRD 12장). 선택된 폴더 필터는 여기서 관리해 탭 전환에도 유지 */
+  folders: FoldersApi
+  folderFilter: string | null
+  setFolderFilter: (folderId: string | null) => void
 }
 
 export function useWorkspaceContext() {
@@ -114,5 +119,11 @@ function WorkspaceBody({ workspaceId, workspace }: { workspaceId: string; worksp
   const edges = useEdges(workspaceId)
   const tagFilter = useTagFilter(tags.tags, tags.links)
   const tagSuggestions = useTagSuggestions()
-  return <Outlet context={{ workspaceId, workspace, nodes, tags, edges, tagFilter, tagSuggestions } satisfies WorkspaceOutletContext} />
+  const folders = useFolders(workspaceId)
+  const [folderFilter, setFolderFilter] = useState<string | null>(null)
+  return (
+    <Outlet
+      context={{ workspaceId, workspace, nodes, tags, edges, tagFilter, tagSuggestions, folders, folderFilter, setFolderFilter } satisfies WorkspaceOutletContext}
+    />
+  )
 }

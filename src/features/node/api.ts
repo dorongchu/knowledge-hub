@@ -6,7 +6,7 @@ export type NodeType = Database['public']['Enums']['node_type']
 /** 목록/편집에 쓰는 노드. embedding 은 무겁고 클라이언트에서 쓸 일이 없어 항상 제외한다. */
 export type KnowledgeNode = Omit<Tables<'nodes'>, 'embedding'>
 
-const NODE_COLUMNS = 'id, workspace_id, type, title, content, position_x, position_y, created_at, updated_at' as const
+const NODE_COLUMNS = 'id, workspace_id, type, title, content, folder_id, position_x, position_y, created_at, updated_at' as const
 
 export const NODE_TITLE_MAX = 300 // DB check 제약과 동일
 export const DEFAULT_NODE_TITLE = '제목 없음'
@@ -27,7 +27,7 @@ export async function listNodes(workspaceId: string): Promise<KnowledgeNode[]> {
 }
 
 /** 제목은 빈 문자열로 만든다(DB default). 화면에서는 `DEFAULT_NODE_TITLE` 로 대체 표시. */
-export async function createNode(input: { workspace_id: string; type: NodeType; title?: string; content?: string }): Promise<KnowledgeNode> {
+export async function createNode(input: { workspace_id: string; type: NodeType; title?: string; content?: string; folder_id?: string | null }): Promise<KnowledgeNode> {
   const { data, error } = await supabase.from('nodes').insert(input).select(NODE_COLUMNS).single()
   if (error) throw error
   return data
@@ -42,7 +42,7 @@ const INSERT_CHUNK_CHARS = 1_500_000
 
 export async function createNodes(
   workspaceId: string,
-  inputs: Array<{ type: NodeType; title: string; content: string }>,
+  inputs: Array<{ type: NodeType; title: string; content: string; folder_id?: string | null }>,
   onProgress?: (done: number, total: number) => void,
 ): Promise<KnowledgeNode[]> {
   const chunks: Array<typeof inputs> = []
@@ -71,7 +71,15 @@ export async function createNodes(
   return created
 }
 
-export type NodePatch = Partial<Pick<KnowledgeNode, 'type' | 'title' | 'content' | 'position_x' | 'position_y'>>
+export type NodePatch = Partial<Pick<KnowledgeNode, 'type' | 'title' | 'content' | 'position_x' | 'position_y' | 'folder_id'>>
+
+/** 여러 노드의 폴더를 한 번에 바꾼다 (PRD 12.8). folder_id 만 바뀌므로 updated_at 은 그대로. */
+export async function moveNodesToFolder(ids: string[], folderId: string | null): Promise<KnowledgeNode[]> {
+  if (ids.length === 0) return []
+  const { data, error } = await supabase.from('nodes').update({ folder_id: folderId }).in('id', ids).select(NODE_COLUMNS)
+  if (error) throw error
+  return data
+}
 
 export async function updateNode(id: string, patch: NodePatch): Promise<KnowledgeNode> {
   const { data, error } = await supabase.from('nodes').update(patch).eq('id', id).select(NODE_COLUMNS).single()

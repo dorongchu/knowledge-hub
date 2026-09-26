@@ -7,6 +7,8 @@ import { MarkdownEditor } from './MarkdownEditor'
 import { NodeTagBar } from '@/features/tag/NodeTagBar'
 import type { TagsApi } from '@/features/tag/useTags'
 import { TagSuggestions } from '@/features/ai/TagSuggestions'
+import { FolderSelect } from '@/features/folder/FolderSelect'
+import type { FoldersApi } from '@/features/folder/useFolders'
 import type { TagSuggestionsApi } from '@/features/ai/useTagSuggestions'
 import {
   AlertDialog,
@@ -44,6 +46,7 @@ interface Props {
   onTagClick?: (tagId: string) => void
   /** AI 태그 제안 보관소 (세션 메모리) */
   tagSuggestions: TagSuggestionsApi
+  folders: FoldersApi
   connections: NodeConnection[]
   onSave: (patch: NodePatch) => Promise<unknown>
   onDelete: () => Promise<void>
@@ -54,7 +57,7 @@ interface Props {
  * 부모는 `key={node.id}` 로 마운트해 노드가 바뀌면 로컬 상태가 초기화되도록 한다.
  * 저장: 제목/본문은 입력 후 AUTOSAVE_DELAY_MS 디바운스, 타입은 즉시. Ctrl/Cmd+S 로 즉시 저장.
  */
-export function NodeEditor({ node, tags, onTagClick, tagSuggestions, connections, onSave, onDelete }: Props) {
+export function NodeEditor({ node, tags, onTagClick, tagSuggestions, folders, connections, onSave, onDelete }: Props) {
   const [title, setTitle] = useState(node.title)
   const [status, setStatus] = useState<SaveStatus>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -131,6 +134,7 @@ export function NodeEditor({ node, tags, onTagClick, tagSuggestions, connections
     <div className="flex h-full flex-col" onKeyDown={onKeyDown}>
       <div className="flex items-center gap-2 border-b px-4 py-2">
         <TypeToggle value={node.type} onChange={(t) => void changeType(t)} />
+        <FolderSelect folders={folders} value={node.folder_id} onChange={async (folderId) => { await onSave({ folder_id: folderId }) }} />
         <span className="ml-auto text-xs text-muted-foreground" aria-live="polite">
           {status === 'dirty' && '편집 중…'}
           {status === 'saving' && '저장 중…'}

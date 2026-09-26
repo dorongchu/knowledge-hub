@@ -7,6 +7,7 @@
 - 마이그레이션 (2026-09-13 `db push` 성공):
   - `supabase/migrations/20260913000001_init_schema.sql` — pgvector, enum, 헬퍼 함수, 8개 테이블 + 각 테이블 RLS
   - `supabase/migrations/20260913000002_storage_attachments.sql` — `attachments` private 버킷 + storage.objects 정책
+  - `supabase/migrations/20260926000005_folders.sql` — `folders` 테이블(RLS) + `nodes.folder_id`(복합 FK, 폴더 삭제 시 set null) (2026-09-26 push 완료)
   - `supabase/migrations/20260917000004_ai_usage.sql` — `ai_usage` 테이블(RLS: 본인 행 조회만) + `consume_ai_quota`(한도 확인+기록을 한 트랜잭션, 사용자별 advisory lock, service_role 전용) (2026-09-17 서울 프로젝트 push 완료)
   - `supabase/migrations/20260913000003_node_positions.sql` — `nodes.position_x/position_y` 추가, updated_at 트리거를 title/content/type 변경 시로 제한 (2026-09-13 push 완료)
 - 프론트엔드: Vite 8 + React 19 + TS 6, Tailwind v4(`@tailwindcss/vite`), shadcn/ui(base-nova, neutral), react-router v7, `@` → `src/` 별칭
@@ -38,7 +39,7 @@
 - [x] 수동 노드 간 연결(엣지) 생성 — 사용자 브라우저 테스트 통과(2026-09-17, easy-connect + 플로팅 엣지 개선 포함). `features/edge/{api,useEdges}.ts`, `graph-view/{GraphView,EdgePanel}.tsx`
 - [x] 텍스트 검색 (fuse.js) — 사용자 브라우저 테스트 통과(2026-09-17). `features/search/{searchIndex,Highlight,SearchInput,GlobalSearch}.tsx`, `lib/plainText.ts`
 - [x] 태그 검색·필터 (PRD 4.5) — 사용자 브라우저 테스트 통과(2026-09-17). 필터 판정(AND/OR)과 "태그가 텍스트 검색에 걸리지 않음"은 브라우저에서 직접 호출해 검증. `features/tag/{useTagFilter.ts,TagFilter.tsx}`, `search/searchIndex.ts`(태그 제거), `doc-view/DocView.tsx`
-- [ ] 폴더 (PRD 12장, 2026-09-26 확정) — `folders` + `nodes.folder_id`, 문서뷰 섹션·폴더 필터·편집기 폴더 선택·선택 모드 일괄 이동, 그래프 필터·강조, 가져오기 최상위 폴더 매핑
+- [x] 폴더 (PRD 12장) — 사용자 브라우저 테스트 통과(2026-09-26). 마이그레이션 0005 서울 프로젝트 적용. `features/folder/{api,useFolders,FolderSelect,FolderManagerDialog}.tsx`, DocView 섹션·선택 모드, GraphView 폴더 강조, ImportDialog 매핑
 - [x] 노션 Markdown 가져오기 (PRD 11장) — 사용자가 실제 노션 내보내기로 테스트 통과(2026-09-17). 파싱 로직은 브라우저에서 모의 노션 zip 으로 검증(한글 파일명, 32자리 ID 제거, BOM/CRLF, 중첩 zip, 이미지·CSV·1 MB 초과 건너뛰기, __MACOSX 무시). `features/import/{parseNotion.ts,ImportDialog.tsx}`, `node/api.ts createNodes`, `useNodes.createMany`
 
 ### AI 기능 (Edge Function)
@@ -67,6 +68,7 @@
 - 렌더 링크 정책(`lib/markdown.ts`): http/https/mailto 만 href 허용(`ALLOWED_URI_REGEXP`). 노션 내보내기의 상대 경로 링크·이미지는 주소가 제거되고 글자/대체 텍스트만 남음 (PRD 11.3 의 내부 링크→엣지 변환 확장 때 재검토)
 - auto-tag: 모델 `claude-sonnet-5`(PRD 7장 sonnet 계열), thinking 끔 + effort low, `messages.parse` + zod 구조화 출력, max_tokens 1024, SDK 타임아웃 30초. 본문은 서버가 DB에서 읽고 24,000자까지만 분석(넘으면 응답 `truncated` 로 화면에 안내). 시스템 지침과 `<document>` 본문 분리 + 본문 속 지시문 무시 명시. 모델 출력은 이름 정규화·중복 제거·기존 태그 매칭·이미 붙은 태그 제외 후 최대 6개. 한도 초기값: 사용자 분당 5회/하루 50회, 워크스페이스 하루 100회(`_shared/rateLimit.ts`). Claude 쪽 장애로 결과를 못 받으면 사용 1회 환불, 거절(refusal)은 유지
 - auto-tag 클라이언트: `features/ai/{autoTag.ts,useTagSuggestions.ts,TagSuggestions.tsx}`. 제안은 WorkspaceBody context 의 메모리 보관소에만(새로고침 시 소멸). 요청 전 편집기의 미저장 변경분을 flush. 승인 시 현재 태그 상태 기준으로 다시 매칭(그 사이 삭제/생성 대비)
+- 폴더: `useFolders(workspaceId)` + `folderFilter` 상태를 WorkspaceBody context 에 둠(탭 전환 유지). 문서뷰 목록은 폴더가 하나라도 있으면 폴더별 섹션(접기, 헤더 클릭 = 그 폴더만 보기, 헤더 ＋ = 그 폴더에 새 카드), 없으면 평면. 적용 순서: 폴더 필터 → 태그 필터 → 텍스트 검색. 새 노드는 폴더 필터 또는 보고 있던 노드의 폴더를 상속. 편집기 상단 `FolderSelect`(네이티브 select, "새 폴더…"는 window.prompt). 선택 모드: 체크박스 + 하단 액션 바("현재 목록 모두 선택"은 필터·검색 결과 전체), `moveNodesToFolder` 로 한 요청 이동(updated_at 불변). 폴더 삭제 시 `nodes.forgetFolder` 로 로컬 반영. 그래프뷰: 우상단 폴더 select 로 다른 폴더 노드 opacity 30%, 노드 카드에 폴더 이름. 가져오기: zip 최상위 폴더 → 폴더 매핑(기본 켬, 같은 이름 폴더 재사용, 미리보기에서 끌 수 있음)
 - 본문 편집: TipTap v3 `useEditor({ content, contentType: 'markdown' })` 로 Markdown 파싱, `editor.getMarkdown()` 으로 직렬화(마크다운 특수문자는 백슬래시 이스케이프됨). 노드 전환 시 `key` 로 에디터 재마운트. 툴바 상태는 `useEditorState` 셀렉터로 구독
 - 본문 렌더(읽기): 반드시 `renderMarkdown()`(marked → DOMPurify, style/form/iframe 등 금지, 링크는 target=_blank + noopener) → `MarkdownView`. 다른 곳에서 `dangerouslySetInnerHTML` 직접 사용 금지
 - Tailwind `@tailwindcss/typography` 플러그인(`prose` 클래스)으로 에디터/뷰 스타일 통일
@@ -113,6 +115,5 @@
 
 ## 다음 세션에서 할 일
 0. README.md 작성됨(2026-09-17): 기능, 설치·Supabase 설정·환경 변수, AI 켜는 법, 명령어, 폴더 구조, 보안 모델, 배포 메모. 기능이나 설정 절차가 바뀌면 함께 갱신
-1. 폴더 기능 구현 (PRD 12장) → 그다음 아래
-2. Phase 1 은 auto-tag 실호출 검증만 보류 상태로 남음(위 AI 기능 항목의 재개 절차 참고). 다음 작업은 사용자와 결정: Phase 1 마무리 점검(README, 배포 방법) 또는 Phase 2
+1. Phase 1 은 auto-tag 실호출 검증만 보류 상태로 남음(위 AI 기능 항목의 재개 절차 참고). 다음 작업은 사용자와 결정: Phase 1 마무리 점검(README, 배포 방법) 또는 Phase 2
 2. 노션 Markdown 가져오기(PRD 11장) → auto-tag Edge Function

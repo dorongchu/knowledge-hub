@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DEFAULT_NODE_TITLE, NODE_TYPE_LABEL, type NodeType } from '@/features/node/api'
 import type { NodesApi } from '@/features/node/useNodes'
+import { isDuplicateFolderError } from '@/features/folder/api'
+import type { FoldersApi } from '@/features/folder/useFolders'
 import { toMessage } from '@/features/workspace/useWorkspaces'
 import { cn } from '@/lib/utils'
 import { MAX_FILES, MAX_FILE_BYTES, SKIP_REASON_LABEL, parseImportFiles, type ImportCandidate, type SkippedFile } from './parseNotion'
@@ -12,15 +14,16 @@ interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
   nodes: NodesApi
+  folders: FoldersApi
 }
 
 /** 노션 Markdown 가져오기 (PRD 11장): 파일 선택 → 미리보기 → 노드 생성 → 결과 */
-export function ImportDialog({ open, onOpenChange, nodes }: Props) {
+export function ImportDialog({ open, onOpenChange, nodes, folders }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[85dvh] flex-col sm:max-w-2xl">
         {/* 닫히면 언마운트되어 다음에 열 때 처음 단계부터 시작한다 */}
-        <ImportFlow nodes={nodes} onClose={() => onOpenChange(false)} />
+        <ImportFlow nodes={nodes} folders={folders} onClose={() => onOpenChange(false)} />
       </DialogContent>
     </Dialog>
   )
@@ -33,11 +36,13 @@ type Step =
   | { kind: 'importing'; done: number; total: number }
   | { kind: 'done'; created: number; failedMessage?: string; skipped: SkippedFile[] }
 
-function ImportFlow({ nodes, onClose }: { nodes: NodesApi; onClose: () => void }) {
+function ImportFlow({ nodes, folders, onClose }: { nodes: NodesApi; folders: FoldersApi; onClose: () => void }) {
   const [step, setStep] = useState<Step>({ kind: 'pick' })
   // 미리보기에서 사용자가 바꾼 값: 제외한 항목, 타입 변경
   const [excluded, setExcluded] = useState<Set<string>>(new Set())
   const [types, setTypes] = useState<Map<string, NodeType>>(new Map())
+  // zip 의 최상위 폴더를 폴더로 매핑 (PRD 11.2 v0.4, 기본 켬)
+  const [mapFolders, setMapFolders] = useState(true)
 
   const existingTitles = useMemo(() => new Set(nodes.items.map((n) => n.title.trim().toLowerCase()).filter(Boolean)), [nodes.items])
 
@@ -63,8 +68,31 @@ function ImportFlow({ nodes, onClose }: { nodes: NodesApi; onClose: () => void }
     if (selected.length === 0) return
     setStep({ kind: 'importing', done: 0, total: selected.length })
     try {
+      // 폴더 매핑: 필요한 최상위 폴더를 먼저 만든다 (같은 이름의 폴더가 있으면 그것을 쓴다)
+      const folderIdByName = new Map<string, string>()
+      if (mapFolders) {
+        const wanted = [...new Set(selected.map((c) => c.topFolder).filter((n): n is string => n !== null))]
+        for (const name of wanted) {
+          const existing = folders.items.find((f) => f.name.toLowerCase() === name.toLowerCase())
+          if (existing) {
+            folderIdByName.set(name, existing.id)
+            continue
+          }
+          try {
+            folderIdByName.set(name, (await folders.create(name.slice(0, 100))).id)
+          } catch (e) {
+            if (!isDuplicateFolderError(e)) throw e
+            await folders.refresh()
+          }
+        }
+      }
       const created = await nodes.createMany(
-        selected.map((c) => ({ type: types.get(c.key) ?? c.suggestedType, title: c.title, content: c.content })),
+        selected.map((c) => ({
+          type: types.get(c.key) ?? c.suggestedType,
+          title: c.title,
+          content: c.content,
+          folder_id: mapFolders && c.topFolder ? (folderIdByName.get(c.topFolder) ?? null) : null,
+        })),
         (done, total) => setStep({ kind: 'importing', done, total }),
       )
       setStep({ kind: 'done', created: created.length, skipped })
@@ -94,6 +122,8 @@ function ImportFlow({ nodes, onClose }: { nodes: NodesApi; onClose: () => void }
           excluded={excluded}
           types={types}
           existingTitles={existingTitles}
+          mapFolders={mapFolders}
+          onMapFolders={setMapFolders}
           onToggle={(key) =>
             setExcluded((prev) => {
               const next = new Set(prev)
@@ -204,6 +234,8 @@ function PreviewStep({
   excluded,
   types,
   existingTitles,
+  mapFolders,
+  onMapFolders,
   onToggle,
   onToggleAll,
   onType,
@@ -213,13 +245,28 @@ function PreviewStep({
   excluded: Set<string>
   types: Map<string, NodeType>
   existingTitles: Set<string>
+  mapFolders: boolean
+  onMapFolders: (v: boolean) => void
   onToggle: (key: string) => void
   onToggleAll: (include: boolean) => void
   onType: (key: string, type: NodeType) => void
 }) {
   const allIncluded = excluded.size === 0
+  const topFolders = [...new Set(candidates.map((c) => c.topFolder).filter((n): n is string => n !== null))]
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 text-sm">
+      {topFolders.length > 0 && (
+        <label className="flex items-start gap-2 rounded-md border p-2">
+          <input type="checkbox" checked={mapFolders} onChange={(e) => onMapFolders(e.target.checked)} className="mt-0.5 size-4 shrink-0" />
+          <span className="min-w-0">
+            <span className="block">zip 의 최상위 폴더를 이 워크스페이스의 폴더로 만들어 노드를 그 안에 넣기</span>
+            <span className="block truncate text-xs text-muted-foreground">
+              {topFolders.length}개: {topFolders.slice(0, 4).join(', ')}
+              {topFolders.length > 4 && ' …'}
+            </span>
+          </span>
+        </label>
+      )}
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground">
           {candidates.length}개 중 {candidates.length - excluded.size}개 선택됨
@@ -240,7 +287,7 @@ function PreviewStep({
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{c.title || DEFAULT_NODE_TITLE}</p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {c.chars.toLocaleString()}자 · {c.sourceName}
+                  {c.chars.toLocaleString()}자{mapFolders && c.topFolder && ` · 폴더 ${c.topFolder}`} · {c.sourceName}
                 </p>
                 {duplicate && (
                   <p className="mt-0.5 flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toMessage } from '@/features/workspace/useWorkspaces'
-import { createNode, createNodes, deleteNode, listNodes, updateNode, type KnowledgeNode, type NodePatch, type NodeType } from './api'
+import { createNode, createNodes, deleteNode, listNodes, moveNodesToFolder, updateNode, type KnowledgeNode, type NodePatch, type NodeType } from './api'
 
 interface State {
   items: KnowledgeNode[]
@@ -10,12 +10,16 @@ interface State {
 
 export interface NodesApi extends State {
   refresh: () => Promise<void>
-  create: (type: NodeType) => Promise<KnowledgeNode>
+  create: (type: NodeType, folderId?: string | null) => Promise<KnowledgeNode>
   /** 가져오기용 일괄 생성. 일부만 성공하고 실패해도 성공한 만큼은 목록에 반영한다 */
   createMany: (
-    inputs: Array<{ type: NodeType; title: string; content: string }>,
+    inputs: Array<{ type: NodeType; title: string; content: string; folder_id?: string | null }>,
     onProgress?: (done: number, total: number) => void,
   ) => Promise<KnowledgeNode[]>
+  /** 여러 노드를 폴더로 이동 (null = 폴더 없음) */
+  moveToFolder: (ids: string[], folderId: string | null) => Promise<void>
+  /** 폴더가 삭제됐을 때 로컬 반영 (DB 는 on delete set null) */
+  forgetFolder: (folderId: string) => void
   update: (id: string, patch: NodePatch) => Promise<KnowledgeNode>
   remove: (id: string) => Promise<void>
 }
@@ -41,8 +45,8 @@ export function useNodes(workspaceId: string): NodesApi {
   }, [refresh])
 
   const create = useCallback(
-    async (type: NodeType) => {
-      const node = await createNode({ workspace_id: workspaceId, type })
+    async (type: NodeType, folderId: string | null = null) => {
+      const node = await createNode({ workspace_id: workspaceId, type, folder_id: folderId })
       setState((s) => ({ ...s, items: [node, ...s.items] }))
       return node
     },
@@ -70,10 +74,20 @@ export function useNodes(workspaceId: string): NodesApi {
     return node
   }, [])
 
+  const moveToFolder = useCallback(async (ids: string[], folderId: string | null) => {
+    const moved = await moveNodesToFolder(ids, folderId)
+    const byId = new Map(moved.map((n) => [n.id, n]))
+    setState((s) => ({ ...s, items: s.items.map((n) => byId.get(n.id) ?? n) }))
+  }, [])
+
+  const forgetFolder = useCallback((folderId: string) => {
+    setState((s) => ({ ...s, items: s.items.map((n) => (n.folder_id === folderId ? { ...n, folder_id: null } : n)) }))
+  }, [])
+
   const remove = useCallback(async (id: string) => {
     await deleteNode(id)
     setState((s) => ({ ...s, items: s.items.filter((n) => n.id !== id) }))
   }, [])
 
-  return { ...state, refresh, create, createMany, update, remove }
+  return { ...state, refresh, create, createMany, moveToFolder, forgetFolder, update, remove }
 }

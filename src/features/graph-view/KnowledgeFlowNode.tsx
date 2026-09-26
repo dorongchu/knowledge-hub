@@ -25,7 +25,7 @@ const sourceHandleClass = '!size-2.5 !border-background !bg-muted-foreground hov
  * - 엣지 모양은 핸들이 아니라 노드 위치로 계산한다 (FloatingEdge)
  */
 function KnowledgeFlowNodeComponent({ id, data, selected }: NodeProps<KnowledgeFlowNode>) {
-  const { node } = data
+  const { node, folderName, dimmed } = data
   const isDoc = node.type === 'doc'
   const Icon = isDoc ? FileText : StickyNote
   const summary = excerptOf(node.content)
@@ -37,7 +37,8 @@ function KnowledgeFlowNodeComponent({ id, data, selected }: NodeProps<KnowledgeF
   return (
     <div
       className={cn(
-        'relative rounded-lg border bg-card text-card-foreground shadow-sm transition-shadow',
+        'relative rounded-lg border bg-card text-card-foreground shadow-sm transition-[box-shadow,opacity]',
+        dimmed && 'opacity-30',
         isDoc ? 'w-56 p-3' : 'w-44 p-2.5',
         selected ? 'border-primary ring-2 ring-primary/30' : 'hover:shadow-md',
         isDropTarget && (connection.isValid === false ? 'ring-2 ring-destructive/40' : 'border-primary ring-2 ring-primary/50'),
@@ -63,6 +64,7 @@ function KnowledgeFlowNodeComponent({ id, data, selected }: NodeProps<KnowledgeF
       {summary && (
         <p className={cn('mt-1 text-muted-foreground', isDoc ? 'line-clamp-3 text-xs' : 'line-clamp-2 text-[11px]')}>{summary}</p>
       )}
+      {folderName && <p className="mt-1 truncate text-[10px] text-muted-foreground/80">▸ {folderName}</p>}
 
       {SOURCE_SIDES.map((s) => (
         <Handle key={s.id} id={s.id} type="source" position={s.position} isConnectableEnd={false} className={sourceHandleClass} />
