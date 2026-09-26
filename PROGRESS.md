@@ -38,6 +38,7 @@
 - [x] 수동 노드 간 연결(엣지) 생성 — 사용자 브라우저 테스트 통과(2026-09-17, easy-connect + 플로팅 엣지 개선 포함). `features/edge/{api,useEdges}.ts`, `graph-view/{GraphView,EdgePanel}.tsx`
 - [x] 텍스트 검색 (fuse.js) — 사용자 브라우저 테스트 통과(2026-09-17). `features/search/{searchIndex,Highlight,SearchInput,GlobalSearch}.tsx`, `lib/plainText.ts`
 - [x] 태그 검색·필터 (PRD 4.5) — 사용자 브라우저 테스트 통과(2026-09-17). 필터 판정(AND/OR)과 "태그가 텍스트 검색에 걸리지 않음"은 브라우저에서 직접 호출해 검증. `features/tag/{useTagFilter.ts,TagFilter.tsx}`, `search/searchIndex.ts`(태그 제거), `doc-view/DocView.tsx`
+- [ ] 폴더 (PRD 12장, 2026-09-26 확정) — `folders` + `nodes.folder_id`, 문서뷰 섹션·폴더 필터·편집기 폴더 선택·선택 모드 일괄 이동, 그래프 필터·강조, 가져오기 최상위 폴더 매핑
 - [x] 노션 Markdown 가져오기 (PRD 11장) — 사용자가 실제 노션 내보내기로 테스트 통과(2026-09-17). 파싱 로직은 브라우저에서 모의 노션 zip 으로 검증(한글 파일명, 32자리 ID 제거, BOM/CRLF, 중첩 zip, 이미지·CSV·1 MB 초과 건너뛰기, __MACOSX 무시). `features/import/{parseNotion.ts,ImportDialog.tsx}`, `node/api.ts createNodes`, `useNodes.createMany`
 
 ### AI 기능 (Edge Function)
@@ -112,5 +113,6 @@
 
 ## 다음 세션에서 할 일
 0. README.md 작성됨(2026-09-17): 기능, 설치·Supabase 설정·환경 변수, AI 켜는 법, 명령어, 폴더 구조, 보안 모델, 배포 메모. 기능이나 설정 절차가 바뀌면 함께 갱신
-1. Phase 1 은 auto-tag 실호출 검증만 보류 상태로 남음(위 AI 기능 항목의 재개 절차 참고). 다음 작업은 사용자와 결정: Phase 1 마무리 점검(README, 배포 방법) 또는 Phase 2
+1. 폴더 기능 구현 (PRD 12장) → 그다음 아래
+2. Phase 1 은 auto-tag 실호출 검증만 보류 상태로 남음(위 AI 기능 항목의 재개 절차 참고). 다음 작업은 사용자와 결정: Phase 1 마무리 점검(README, 배포 방법) 또는 Phase 2
 2. 노션 Markdown 가져오기(PRD 11장) → auto-tag Edge Function
